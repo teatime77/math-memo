@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta charset="utf-8" />
+    <title>ガウス積分</title>
+    <script type="text/x-mathjax-config">
+      MathJax.Hub.Config({
+        extensions: ["tex2jax.js"],
+        jax: ["input/TeX","output/HTML-CSS"],
+        tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]}
+      });
+    </script>
+    <script src='https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=TeX-MML-AM_CHTML' async></script>
+    <!-- <script type="text/javascript" src="MathJax/MathJax.js" ></script> -->
+</head>
+<body>
+<h1>ガウス分布(Gaussian distribution)</h1>
+
+$$
+\newcommand{\red}[1]{ \color{red}{#1} }
+$$
+
+$$
+N(x \mid \mu, \sigma^2) = \frac{1}{2 \pi \sigma^2} e^{-\frac{1}{2 \sigma^2}(x - \mu)^2}
+\tag{1.46}
+$$
+
+$$
+N(x \mid \mu, \sigma^2) \gt 0
+\tag{1.47}
+$$
+
+$$
+\int_{-\infty}^{\infty} N(x \mid \mu, \sigma^2) dx = 1
+\tag{1.48}
+$$
+
+
+$$
+E[x] = \int_{-\infty}^{\infty} N(x \mid \mu, \sigma^2) x dx = \mu
+\tag{1.49}
+$$
+
+$$
+E[x^2] = \int_{-\infty}^{\infty} N(x \mid \mu, \sigma^2) x^2 dx = \mu^2 + \sigma^2
+\tag{1.50}
+$$
+
+$$
+var[x] = E[x^2] - E[x]^2 = \sigma^2
+\tag{1.51}
+$$
+
+
+<h1>ガウス積分(Gaussian integral)</h1>
+
+
+<h2>$\int_{-\infty}^{\infty} e^{- x^2} = \sqrt{\pi} $</h2>
+
+$$
+I = \int_{-\infty}^{\infty} e^{- x^2} dx
+$$
+
+$$
+I^2 = \int_{-\infty}^{\infty} e^{- x^2} dx 
+\cdot \int_{-\infty}^{\infty} e^{- y^2} dy 
+\\
+= \int_{-\infty}^{\infty} \int_{-\infty}^{\infty} e^{- x^2} e^{- y^2} dx dy
+\\
+= \int_{-\infty}^{\infty} \int_{-\infty}^{\infty} e^{- (x^2 + y^2) } dx dy
+$$
+
+重積分(multiple integral)の公式
+
+$$
+\int \int f(x,y) dx dy = \int \int f(x(u,v), y(u,v)) \mid det(J) \mid du dv
+$$
+$J$ はヤコビ行列(Jacobian matrix)<br/>
+<br/>
+
+$ x = r cos \theta , y = r sin \theta $ とおくと、ヤコビ行列の行列式(determinant)は
+
+$$
+det(J) =
+\begin{vmatrix} \frac{\partial x}{\partial r} & \frac{\partial x}{\partial \theta} \\ \frac{\partial y}{\partial r} & \frac{\partial y}{\partial \theta} \end{vmatrix}
+= \begin{vmatrix} cos \theta & -r sin \theta \\ sin \theta & r cos \theta \end{vmatrix}
+= r (cos^2 \theta + sin^2 \theta) = r
+$$
+
+$$
+\int_{0}^{\infty} \int_{-\pi}^{\pi} e^{- r^2} r d\theta dr
+$$
+
+$$
+= 2 \pi \int_{0}^{\infty} e^{- r^2} r dr
+$$
+
+$\frac{d e^{- r^2}}{d r} = e^{- r^2} (- 2r)$ なので
+
+$$
+e^{- r^2} r = - \frac{1}{2} \frac{d e^{- r^2}}{d r}
+$$
+
+$$
+2 \pi \int_{0}^{\infty} - \frac{1}{2} \frac{d e^{- r^2}}{d r} dr
+\\
+= - \pi \int_{0}^{\infty} \frac{d e^{- r^2}}{d r} dr
+\\
+= - \pi \left[ e^{- r^2} \right]_{0}^{\infty}
+\\
+= - \pi (0 - 1) = \pi
+$$
+
+<hr/>
+
+<h2>$\int_{-\infty}^{\infty} e^{- a x^2} dx = \sqrt{ \frac{\pi}{a} } $</h2>
+
+
+$$
+\int_{-\infty}^{\infty} e^{- a x^2} dx
+$$
+
+$ x = \frac{u}{\sqrt{a}} $ とおいて
+
+$$
+= \int_{-\infty}^{\infty} e^{- a \red{(\frac{u}{\sqrt{a}})}^2} \frac{d x}{ d u} d u
+\\
+= \int_{-\infty}^{\infty} e^{- u^2 } \red{\frac{1}{\sqrt{a}}} d u
+\\
+= \int_{-\infty}^{\infty} e^{- u^2 } d u \cdot \red{\frac{1}{\sqrt{a}}}
+\\
+= \red{\sqrt{\pi}} \cdot \frac{1}{\sqrt{a}}
+\\
+= \sqrt{ \frac{\pi}{a} }
+$$
+
+<hr/>
+
+<h2>$\int_{-\infty}^{\infty} x e^{- a x^2} dx = 0 $</h2>
+$$
+\int_{-\infty}^{\infty} x e^{- a x^2} dx
+= \int_{-\infty}^0 x e^{- a x^2} dx
+ + \int_0^{\infty} x e^{- a x^2} dx
+$$
+
+<hr/>
+
+<h4>$\int_{-\infty}^{\infty} x e^{- a (x-b)^2} dx = b \sqrt{ \frac{\pi}{a} } $</h4>
+
+$$
+\int_{-\infty}^{\infty} x e^{- a (x-b)^2} dx
+$$
+
+$x - b = u$とおいて
+
+$$
+\int_{-\infty}^{\infty} (u + b) e^{- a u^2} \frac{dx}{du} du
+\\
+= \int_{-\infty}^{\infty} (u + b) e^{- a u^2} \cdot \red{1} du
+\\
+= 
+\int_{-\infty}^{\infty} u e^{- a u^2} du
++ b \int_{-\infty}^{\infty} u e^{- a u^2} du
+= b \sqrt{ \frac{\pi}{a} }
+$$
+
+$a = \frac{1}{2 \sigma^2} , b = \mu $ とすると
+
+$$
+\int_{-\infty}^{\infty} x e^{- \frac{(x-\mu)^2}{2 \sigma^2} } dx
+= \mu \sqrt{ \frac{\pi}{ \frac{1}{2 \sigma^2} } }
+= \mu \sqrt{ 2 \pi \sigma^2 }
+$$
+
+両辺を $ \sqrt{ 2 \pi \sigma^2 } $ で割って
+
+$$
+\int_{-\infty}^{\infty} x \frac{1}{\sqrt{ 2 \pi \sigma^2 }} e^{- \frac{(x-\mu)^2}{2 \sigma^2} } dx
+= \int_{-\infty}^{\infty} x N(x \mid \mu, \sigma^2) dx = \mu
+$$
+
+<hr/>
+
+$$
+\int_{-\infty}^{\infty} e^{- a (x-b)^2} dx =  \sqrt{\frac{\pi}{a} }
+$$
+
+両辺を $a$ で微分すると
+$$
+\int_{-\infty}^{\infty} (- (x-b)^2) e^{- a (x-b)^2} dx =  - \frac{1}{2} \sqrt{\pi} a^{ -\frac{3}{2} }
+$$
+
+$$
+\int_{-\infty}^{\infty} x^2 e^{- a (x-b)^2} dx
+- 2 b \int_{-\infty}^{\infty} x e^{- a (x-b)^2} dx
++ b^2 \int_{-\infty}^{\infty} e^{- a (x-b)^2} dx
+= \frac{1}{2} \sqrt{\pi} a^{ -\frac{3}{2} }
+$$
+
+$$
+\int_{-\infty}^{\infty} x^2 e^{- a (x-b)^2} dx
+= 2 b \cdot b \sqrt{\frac{\pi}{a}}
+- b^2 \sqrt{\frac{\pi}{a}} + \frac{1}{2} \sqrt{\pi} a^{ -\frac{3}{2} }
+= b^2 \sqrt{\frac{\pi}{a}} + \frac{1}{2} \sqrt{\pi} a^{ -\frac{3}{2} }
+$$
+
+$a = \frac{1}{2 \sigma^2} , b = \mu $ とすると
+$$
+\int_{-\infty}^{\infty} x^2 e^{- \frac{1}{2 \sigma^2} (x-\mu)^2} dx
+= \mu^2 \sqrt{\frac{\pi}{\frac{1}{2 \sigma^2}}} 
++ \frac{1}{2} \sqrt{\pi} (\frac{1}{2 \sigma^2})^{ -\frac{3}{2} }
+\\
+= \mu^2 \sqrt{2 \pi \sigma^2 } + \frac{1}{2} \sqrt{\pi} (2 \sigma^2)^\frac{3}{2}
+\\
+= \mu^2 \sqrt{2 \pi \sigma^2 } + \frac{1}{2} \sqrt{\pi} (2 \sigma^2) \sqrt{2 \sigma^2}
+\\
+= \mu^2 \sqrt{2 \pi \sigma^2 } + \sigma^2 \sqrt{2 \pi \sigma^2}
+$$
+
+
+
+両辺を $ \sqrt{ 2 \pi \sigma^2 } $ で割って
+
+$$
+\int_{-\infty}^{\infty} x^2 \frac{1}{\sqrt{ 2 \pi \sigma^2 }}  e^{- \frac{1}{2 \sigma^2} (x-\mu)^2} dx 
+= \int_{-\infty}^{\infty} x^2 N(x \mid \mu, \sigma^2) dx
+= \mu^2 + \sigma^2
+$$
+
+
+</body>
+</html>

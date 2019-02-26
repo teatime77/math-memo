@@ -11,6 +11,7 @@ Welcome to math-memo's documentation!
     :caption: 目次:
 
     matrix.md
+    gaussian_distribution.md
 
 
 Indices and tables
