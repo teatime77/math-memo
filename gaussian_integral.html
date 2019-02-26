@@ -1,24 +1,26 @@
 <!DOCTYPE html>
 
 <html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+
 <head>
-    <meta charset="utf-8" />
-    <title>ガウス積分</title>
-    <script type="text/x-mathjax-config">
+  <meta charset="utf-8" />
+  <title>ガウス積分</title>
+  <script type="text/x-mathjax-config">
       MathJax.Hub.Config({
         extensions: ["tex2jax.js"],
         jax: ["input/TeX","output/HTML-CSS"],
         tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]}
       });
     </script>
-    <script src='https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=TeX-MML-AM_CHTML' async></script>
-    <!-- <script type="text/javascript" src="MathJax/MathJax.js" ></script> -->
+  <script src='https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=TeX-MML-AM_CHTML' async></script>
+  <!-- <script type="text/javascript" src="MathJax/MathJax.js" ></script> -->
 </head>
-<body>
-<h1>ガウス分布(Gaussian distribution)</h1>
 
-$$
-\newcommand{\red}[1]{ \color{red}{#1} }
+<body>
+  <h1>ガウス分布(Gaussian distribution)</h1>
+
+  $$
+  \newcommand{\red}[1]{ \color{red}{#1} }
 $$
 
 $$
@@ -56,7 +58,19 @@ $$
 <h1>ガウス積分(Gaussian integral)</h1>
 
 
-<h2>$\int_{-\infty}^{\infty} e^{- x^2} = \sqrt{\pi} $</h2>
+$$
+\int_{-\infty}^{\infty} e^{- x^2} = \sqrt{\pi}
+\\
+\int_{-\infty}^{\infty} e^{- a x^2} dx = \sqrt{ \frac{\pi}{a} }
+\\
+\int_{-\infty}^{\infty} x e^{- a x^2} dx = 0
+\\
+\int_{-\infty}^{\infty} x e^{- a (x-b)^2} dx = b \sqrt{ \frac{\pi}{a} }
+$$
+
+<hr/>
+
+<h4>$\int_{-\infty}^{\infty} e^{- x^2} = \sqrt{\pi} $ の証明</h4>
 
 $$
 I = \int_{-\infty}^{\infty} e^{- x^2} dx
@@ -114,7 +128,7 @@ $$
 
 <hr/>
 
-<h2>$\int_{-\infty}^{\infty} e^{- a x^2} dx = \sqrt{ \frac{\pi}{a} } $</h2>
+<h4>$\int_{-\infty}^{\infty} e^{- a x^2} dx = \sqrt{ \frac{\pi}{a} } $の証明</h4>
 
 
 $$
@@ -137,7 +151,7 @@ $$
 
 <hr/>
 
-<h2>$\int_{-\infty}^{\infty} x e^{- a x^2} dx = 0 $</h2>
+<h4>$\int_{-\infty}^{\infty} x e^{- a x^2} dx = 0 $の証明</h4>
 $$
 \int_{-\infty}^{\infty} x e^{- a x^2} dx
 = \int_{-\infty}^0 x e^{- a x^2} dx
@@ -146,7 +160,7 @@ $$
 
 <hr/>
 
-<h4>$\int_{-\infty}^{\infty} x e^{- a (x-b)^2} dx = b \sqrt{ \frac{\pi}{a} } $</h4>
+<h4>$\int_{-\infty}^{\infty} x e^{- a (x-b)^2} dx = b \sqrt{ \frac{\pi}{a} } $の証明</h4>
 
 $$
 \int_{-\infty}^{\infty} x e^{- a (x-b)^2} dx
@@ -155,17 +169,26 @@ $$
 $x - b = u$とおいて
 
 $$
-\int_{-\infty}^{\infty} (u + b) e^{- a u^2} \frac{dx}{du} du
+= \int_{-\infty}^{\infty} (u + b) e^{- a u^2} \frac{dx}{du} du
 \\
 = \int_{-\infty}^{\infty} (u + b) e^{- a u^2} \cdot \red{1} du
-\\
+$$
+積分内の$u + b$ を分解して
+$$
 = 
 \int_{-\infty}^{\infty} u e^{- a u^2} du
-+ b \int_{-\infty}^{\infty} u e^{- a u^2} du
++ b \int_{-\infty}^{\infty} e^{- a u^2} du
+$$
+
+最初の項は0なので
+$$
+
 = b \sqrt{ \frac{\pi}{a} }
 $$
 
-$a = \frac{1}{2 \sigma^2} , b = \mu $ とすると
+<hr/>
+<h4>$E[x] = \mu$ の証明   </h4>
+上で、$a = \frac{1}{2 \sigma^2} , b = \mu $ とすると
 
 $$
 \int_{-\infty}^{\infty} x e^{- \frac{(x-\mu)^2}{2 \sigma^2} } dx
@@ -181,7 +204,7 @@ $$
 $$
 
 <hr/>
-
+<h4>$E[x^2] = \mu^2 + \sigma^2$ の証明</h4>
 $$
 \int_{-\infty}^{\infty} e^{- a (x-b)^2} dx =  \sqrt{\frac{\pi}{a} }
 $$
@@ -191,6 +214,7 @@ $$
 \int_{-\infty}^{\infty} (- (x-b)^2) e^{- a (x-b)^2} dx =  - \frac{1}{2} \sqrt{\pi} a^{ -\frac{3}{2} }
 $$
 
+左辺の$(x-b)^2$の項を分解して
 $$
 \int_{-\infty}^{\infty} x^2 e^{- a (x-b)^2} dx
 - 2 b \int_{-\infty}^{\infty} x e^{- a (x-b)^2} dx
@@ -198,6 +222,23 @@ $$
 = \frac{1}{2} \sqrt{\pi} a^{ -\frac{3}{2} }
 $$
 
+$x$の平行移動の積分なので
+$$
+\int_{-\infty}^{\infty} x^2 e^{- a (x-b)^2} dx
+- 2 b \int_{-\infty}^{\infty} x e^{- a (x-b)^2} dx
++ b^2 \int_{-\infty}^{\infty} e^{- a \red{x}^2} dx
+= \frac{1}{2} \sqrt{\pi} a^{ -\frac{3}{2} }
+$$
+
+左辺の後ろの2項を右辺に移項して
+$$
+\int_{-\infty}^{\infty} x^2 e^{- a (x-b)^2} dx
+= 2 b \int_{-\infty}^{\infty} x e^{- a (x-b)^2} dx
+- b^2 \int_{-\infty}^{\infty} e^{- a x^2} dx
++ \frac{1}{2} \sqrt{\pi} a^{ -\frac{3}{2} }
+$$
+
+上で求めた$\int_{-\infty}^{\infty} x e^{- a (x-b)^2} dx = b \sqrt{ \frac{\pi}{a} } $ と $\int_{-\infty}^{\infty} e^{- a x^2} dx = \sqrt{ \frac{\pi}{a} } $ を使い
 $$
 \int_{-\infty}^{\infty} x^2 e^{- a (x-b)^2} dx
 = 2 b \cdot b \sqrt{\frac{\pi}{a}}
@@ -207,9 +248,9 @@ $$
 
 $a = \frac{1}{2 \sigma^2} , b = \mu $ とすると
 $$
-\int_{-\infty}^{\infty} x^2 e^{- \frac{1}{2 \sigma^2} (x-\mu)^2} dx
-= \mu^2 \sqrt{\frac{\pi}{\frac{1}{2 \sigma^2}}} 
-+ \frac{1}{2} \sqrt{\pi} (\frac{1}{2 \sigma^2})^{ -\frac{3}{2} }
+\int_{-\infty}^{\infty} x^2 e^{- \frac{1}{2 \sigma^2} (x- \red{\mu})^2} dx
+= \red{\mu}^2 \sqrt{\frac{\pi}{\red{\frac{1}{2 \sigma^2}}}}
++ \frac{1}{2} \sqrt{\pi} \red{(\frac{1}{2 \sigma^2})}^{ -\frac{3}{2} }
 \\
 = \mu^2 \sqrt{2 \pi \sigma^2 } + \frac{1}{2} \sqrt{\pi} (2 \sigma^2)^\frac{3}{2}
 \\
