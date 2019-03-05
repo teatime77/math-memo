@@ -157,6 +157,7 @@ $$
 = \int_{-\infty}^0 x e^{- a x^2} dx
  + \int_0^{\infty} x e^{- a x^2} dx
 $$
+$x$ は奇関数（odd function）、$e^{- a x^2}$ 偶関数は（even function）なので右辺は$0$
 
 <hr/>
 
@@ -241,14 +242,14 @@ $$
 上で求めた$\int_{-\infty}^{\infty} x e^{- a (x-b)^2} dx = b \sqrt{ \frac{\pi}{a} } $ と $\int_{-\infty}^{\infty} e^{- a x^2} dx = \sqrt{ \frac{\pi}{a} } $ を使い
 $$
 \int_{-\infty}^{\infty} x^2 e^{- a (x-b)^2} dx
-= 2 b \cdot b \sqrt{\frac{\pi}{a}}
-- b^2 \sqrt{\frac{\pi}{a}} + \frac{1}{2} \sqrt{\pi} a^{ -\frac{3}{2} }
+= 2 b \cdot \red{ b \sqrt{\frac{\pi}{a}} }
+- b^2 \red{ \sqrt{\frac{\pi}{a}} } + \frac{1}{2} \sqrt{\pi} a^{ -\frac{3}{2} }
 = b^2 \sqrt{\frac{\pi}{a}} + \frac{1}{2} \sqrt{\pi} a^{ -\frac{3}{2} }
 $$
 
 $a = \frac{1}{2 \sigma^2} , b = \mu $ とすると
 $$
-\int_{-\infty}^{\infty} x^2 e^{- \frac{1}{2 \sigma^2} (x- \red{\mu})^2} dx
+\int_{-\infty}^{\infty} x^2 e^{- \red{ \frac{1}{2 \sigma^2} } (x- \red{\mu})^2} dx
 = \red{\mu}^2 \sqrt{\frac{\pi}{\red{\frac{1}{2 \sigma^2}}}}
 + \frac{1}{2} \sqrt{\pi} \red{(\frac{1}{2 \sigma^2})}^{ -\frac{3}{2} }
 \\
