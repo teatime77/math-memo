@@ -17,85 +17,387 @@
 </head>
 
 <body>
-  <h1>ガウス分布(Gaussian distribution)</h1>
+  <h1>Wasserstein GAN</h1>
 
 $$
   \newcommand{\red}[1]{ \color{red}{#1} }
 $$
 
-<a href="https://en.wikipedia.org/wiki/Support_(measure_theory)">support</a><br/>
 
-<a href="">Measure space</a><br/>
+<h2>
+  <a href="https://ja.wikipedia.org/wiki/%E8%A7%A3%E6%9E%90%E5%AD%A6">解析学</a>
+  (<a href="https://en.wikipedia.org/wiki/Mathematical_analysis">analysis</a>)
+</h2>
 
-<a href="https://en.wikipedia.org/wiki/Sigma-algebra">σ-algebra</a><br/>
+<h4>
+    <a href="https://ja.wikipedia.org/wiki/%E5%90%84%E7%82%B9%E5%8F%8E%E6%9D%9F">各点収束</a>
+    (<a href="https://en.wikipedia.org/wiki/Pointwise_convergence">Pointwise convergence</a>)
+</h4>
+
+<h4>
+  <a href="https://ja.wikipedia.org/wiki/%E6%9C%89%E7%95%8C">有界</a>
+  (<a href="https://en.wikipedia.org/wiki/Bounded_set">bounded set</a>)
+</h4>
+<h4>
+  <a href="https://ja.wikipedia.org/wiki/%E4%B8%80%E6%A7%98%E6%9C%89%E7%95%8C%E6%80%A7">一様有界</a>
+  (<a href="https://en.wikipedia.org/wiki/Uniform_boundedness">Uniform boundedness</a>)
+</h4>
+
+<h4>
+  <a href="https://ja.wikipedia.org/wiki/%E4%B8%80%E6%A7%98%E9%80%A3%E7%B6%9A">一様連続</a>
+  (<a href="https://en.wikipedia.org/wiki/Uniform_continuity">uniformly continuous</a>)
+</h4>
+
+
+<hr/>
+
+<h2>
+  <a href="https://ja.wikipedia.org/wiki/%E4%BD%8D%E7%9B%B8%E7%A9%BA%E9%96%93%E8%AB%96">位相空間論</a>
+  (<a href="https://en.wikipedia.org/wiki/General_topology">general topology</a>)
+</h2>
+
+<h4>
+  <a href="https://ja.wikipedia.org/wiki/%E9%9B%86%E5%90%88%E3%81%AE%E8%A2%AB%E8%A6%86">被覆</a>
+  (<a href="https://en.wikipedia.org/wiki/Cover_(topology)">cover</a>)
+</h4>
+a cover of a set $\displaystyle{X}$ is a collection of sets whose union contains $\displaystyle{X}$ as a subset.
+
+$$
+X \subseteq \bigcup_{\alpha \in A} U_\alpha
+$$
+
+<h5>開被覆(open cover)</h5>
+開集合で被覆すること。
+
+<h4>
+  <a href="https://ja.wikipedia.org/wiki/%E3%82%B3%E3%83%B3%E3%83%91%E3%82%AF%E3%83%88%E7%A9%BA%E9%96%93">*コンパクト</a>
+  (<a href="https://en.wikipedia.org/wiki/Compact_space">compact</a>)
+</h4>
+任意の開被覆に対し、有限の開被覆が存在する。
+
+<h5>定理</h5>
+$X$ を距離空間とするとき以下の3つは同値である。
+<ul>
+  <li>$X$ はコンパクトである。</li>
+  <li>$X$ は点列コンパクトである。</li>
+  <li>$X$ は全有界かつ完備である。</li>
+</ul>
+
+<p>
+  距離空間Xが全有界であるとは任意の ε > 0 に対し、$X$ を半径 ε の有限個の開球で被覆できる事を指す。  
+</p>
+<p>
+距離空間 X が完備であるとは X 上のコーシー列は必ず収束する事を指す。
+</p>
+
+
+<h4>
+  <a href="https://ja.wikipedia.org/wiki/%E4%BD%8D%E7%9B%B8%E5%90%8C%E5%9E%8B">位相同型</a>
+  (<a href="https://en.wikipedia.org/wiki/Homeomorphism">Homeomorphism</a>)
+</h4>
+
+<h4>
+  <a href="https://ja.wikipedia.org/wiki/%E3%83%9C%E3%83%AC%E3%83%AB%E9%9B%86%E5%90%88">*ボレル集合</a>
+  (<a href="https://en.wikipedia.org/wiki/Borel_set">Borel set</a>)
+</h4>
+
+<h4>
+  <a href="https://ja.wikipedia.org/wiki/%E9%96%8B%E9%9B%86%E5%90%88">*開集合</a>
+  (<a href="https://en.wikipedia.org/wiki/Open_set">open set</a>)
+</h4>
+
+<h4>
+  <a href="https://ja.wikipedia.org/wiki/%E8%BF%91%E5%82%8D_(%E4%BD%8D%E7%9B%B8%E7%A9%BA%E9%96%93%E8%AB%96)">近傍</a>
+  (<a href="https://en.wikipedia.org/wiki/Neighbourhood_(mathematics)">neighbourhood</a>)
+</h4>
+位相空間の点の近傍とは、その点を含む開集合を含むような集合をいう。<br/>
+位相空間の点pの近傍とは、p を含む開集合 U を含むような集合Vをいう。
+
+$$
+p \in U \subseteq V \\
+$$
+
+
+<h4>
+  <a href="https://ja.wikipedia.org/wiki/%E8%B7%9D%E9%9B%A2%E5%87%BD%E6%95%B0">距離函数</a>
+  (<a href="https://en.wikipedia.org/wiki/Metric_(mathematics)">distance function</a>)
+</h4>
+d: X × X → R が距離函数であるとは、x, y, z を X の任意の元として、以下の条件が満たされることを言う。
+
+$$
+d(x, y) ≥ 0
+\\
+d(x, y) = 0  \quad \iff \quad  x = y
+\\
+d(x, y) = d(y, x) 
+\\
+d(x, z) ≤ d(x, y) + d(y, z) 
+$$
+
+
+<h4>
+  <a href="https://ja.wikipedia.org/wiki/%E8%B7%9D%E9%9B%A2%E7%A9%BA%E9%96%93">距離空間</a>
+  (<a href="https://en.wikipedia.org/wiki/Metric_space">metric space</a>)
+</h4>
+距離空間とは、距離関数が与えられている集合のことである。
+
+<h4>
+  <a href="https://ja.wikipedia.org/wiki/%E5%AE%8C%E5%82%99%E8%B7%9D%E9%9B%A2%E7%A9%BA%E9%96%93">完備距離空間</a>
+  (<a href="https://en.wikipedia.org/wiki/Complete_metric_space">complete metric space</a>)
+</h4>
+
+<h4>
+  <a href="https://ja.wikipedia.org/wiki/%E3%83%8E%E3%83%AB%E3%83%A0">ノルム</a>
+  (<a href="https://en.wikipedia.org/wiki/Norm_(mathematics)">norm</a>)
+</h4>
+
+<h4>
+  <a href="https://ja.wikipedia.org/wiki/%E3%83%8E%E3%83%AB%E3%83%A0%E7%B7%9A%E5%9E%8B%E7%A9%BA%E9%96%93">ノルム線型空間</a>
+  (<a href="https://en.wikipedia.org/wiki/Normed_vector_space">normed vector space</a>)
+</h4>
+<a href="https://en.wikipedia.org/wiki/Normed_vector_space#Topological_structure">norm topology</a><br/>
+<a href="http://mathworld.wolfram.com/NormTopology.html">Norm Topology -- from Wolfram MathWorld</a><br/>
+
+<hr/>
+
+<h2>
+  <a href="https://ja.wikipedia.org/wiki/%E6%B8%AC%E5%BA%A6%E8%AB%96">測度</a>
+  (<a href="https://en.wikipedia.org/wiki/Measure_(mathematics)">measure</a>)
+</h2>
+
+<h4>
+  <a href="https://en.wikipedia.org/wiki/Measure_space">measure space</a>
+  (<a href=""></a>)
+</h4>
+
+<h4>
+  <a href="https://ja.wikipedia.org/wiki/%E5%AE%8C%E5%85%A8%E5%8A%A0%E6%B3%95%E6%97%8F">*完全加法族</a>
+  (<a href="https://en.wikipedia.org/wiki/Sigma-algebra">Sigma-algebra</a>)
+</h4>
+
+<h4>
+  <a href="https://ja.wikipedia.org/wiki/%E5%A4%96%E6%B8%AC%E5%BA%A6">外測度</a>
+  (<a href="https://en.wikipedia.org/wiki/Outer_measure">outer measure</a>)
+</h4>
+
+<hr/>
+
+<h4>
+  <a href="https://ja.wikipedia.org/wiki/%E3%83%AB%E3%83%99%E3%83%BC%E3%82%B0%E6%B8%AC%E5%BA%A6">ルベーグ測度</a>
+  (<a href="https://en.wikipedia.org/wiki/Lebesgue_measure">Lebesgue measure</a>)
+</h4>
+
+<h4>
+  <a href="https://ja.wikipedia.org/wiki/%E7%AC%A6%E5%8F%B7%E4%BB%98%E6%B8%AC%E5%BA%A6">符号付測度</a>
+  (<a href="https://en.wikipedia.org/wiki/Signed_measure">signed measure</a>)
+</h4>
+
+<h4>
+  <a href="https://ja.wikipedia.org/wiki/%E5%8F%AF%E6%B8%AC%E9%96%A2%E6%95%B0">可測関数</a>
+  (<a href="https://en.wikipedia.org/wiki/Measurable_function">Measurable function</a>)
+</h4>
+
+<h4>
+  <a href="https://ja.wikipedia.org/wiki/%E5%8F%B0_(%E6%B8%AC%E5%BA%A6%E8%AB%96)">*台</a>
+  (<a href="https://en.wikipedia.org/wiki/Support_(measure_theory)">support</a>)
+</h4>
+
+<h4>
+  <a href="https://ja.wikipedia.org/wiki/%E3%81%BB%E3%81%A8%E3%82%93%E3%81%A9_(%E6%95%B0%E5%AD%A6)#%E3%81%BB%E3%81%A8%E3%82%93%E3%81%A9%E8%87%B3%E3%82%8B%E3%81%A8%E3%81%93%E3%82%8D%E3%81%A7">*ほとんど至るところで</a>
+  (<a href="https://en.wikipedia.org/wiki/Almost_everywhere">almost everywhere(a.e.)</a>)
+</h4>
+
+<hr/>
+
+<h4>
+  <a href="https://ja.wikipedia.org/wiki/%E7%A2%BA%E7%8E%87%E6%B8%AC%E5%BA%A6">確率測度</a>
+  (<a href="https://en.wikipedia.org/wiki/Probability_measure">probability measure</a>)
+</h4>
+
+<h4>
+  <a href="https://ja.wikipedia.org/wiki/%E7%A2%BA%E7%8E%87%E7%A9%BA%E9%96%93">確率空間</a>
+  (<a href="https://en.wikipedia.org/wiki/Probability_space">probability space</a>)
+</h4>
+
+<h4>
+  <a href="https://ja.wikipedia.org/wiki/%E7%A2%BA%E7%8E%87%E5%A4%89%E6%95%B0%E3%81%AE%E5%8F%8E%E6%9D%9F#%E5%88%86%E5%B8%83%E5%8F%8E%E6%9D%9F">*分布収束</a>
+  (<a href="https://en.wikipedia.org/wiki/Convergence_of_random_variables#Convergence_in_distribution">convergence in distribution</a>)
+</h4>
+
+<hr/>
+
+
+<h2>
+  <a href="https://ja.wikipedia.org/wiki/%E3%83%AB%E3%83%99%E3%83%BC%E3%82%B0%E7%A9%8D%E5%88%86">ルベーグ積分</a>
+  (<a href="https://en.wikipedia.org/wiki/Lebesgue_integration">Lebesgue integration</a>)
+</h2>
+
+<h4>
+  <a href="https://ja.wikipedia.org/wiki/%E5%84%AA%E5%8F%8E%E6%9D%9F%E5%AE%9A%E7%90%86">優収束定理</a>
+  (<a href="https://en.wikipedia.org/wiki/Dominated_convergence_theorem">dominated convergence theorem</a>)
+</h4>
+
+<h4>
+  <a href="https://ja.wikipedia.org/wiki/%E5%84%AA%E5%8F%8E%E6%9D%9F%E5%AE%9A%E7%90%86#%E6%9C%89%E7%95%8C%E5%8F%8E%E6%9D%9F%E5%AE%9A%E7%90%86">有界収束定理</a>
+  (<a href="https://en.wikipedia.org/wiki/Dominated_convergence_theorem#Bounded_convergence_theorem">bounded convergence theorem</a>)
+</h4>
+$f_n$ が実数値可測関数からなる一様有界な関数列で、有界な測度空間 (S, Σ, μ) （すなわち、μ(S) が有限）上の関数 f に各点収束するなら、f は可積分関数で
+
+$$
+\lim_{n \to \infty } \int_{S} {f_{n} \, d\mu } = \int_{S} {f\,d\mu }
+$$
+が成り立つ。
+
+<h4>
+  <a href="https://ja.wikipedia.org/wiki/%E3%83%95%E3%83%93%E3%83%8B%E3%81%AE%E5%AE%9A%E7%90%86">*フビニの定理</a>
+  (<a href="https://en.wikipedia.org/wiki/Fubini%27s_theorem">Fubini's theorem</a>)
+</h4>
+
+<h4>
+  <a href="https://ja.wikipedia.org/wiki/%E7%B5%B6%E5%AF%BE%E9%80%A3%E7%B6%9A">*絶対連続</a>
+  (<a href="https://en.wikipedia.org/wiki/Absolute_continuity">absolute continuity</a>)
+</h4>
+
+<h4>
+  <a href="https://ja.wikipedia.org/wiki/%E3%83%AA%E3%83%97%E3%82%B7%E3%83%83%E3%83%84%E9%80%A3%E7%B6%9A">リプシッツ連続</a>
+  (<a href="https://en.wikipedia.org/wiki/Lipschitz_continuity">Lipschitz continuity</a>)
+</h4>
+<h5>局所リプシッツ連続(locally Lipschitz continuous)</h5>
+
+写像 f が局所リプシッツ連続であるとは、任意の x ∈ X に対して x の近傍 U を適当に選べば f の U への制限 がリプシッツ連続であるときに言う。<br/>
+A function is called locally Lipschitz continuous if for every x in X there exists a neighborhood U of x such that f restricted to U is Lipschitz continuous. 
+
+<h4>
+  <a href="https://ja.wikipedia.org/wiki/%E3%83%A9%E3%83%BC%E3%83%87%E3%83%9E%E3%83%83%E3%83%98%E3%83%AB%E3%81%AE%E5%AE%9A%E7%90%86">*ラーデマッヘルの定理</a>
+  (<a href="https://en.wikipedia.org/wiki/Rademacher%27s_theorem">Rademacher's theorem</a>)
+</h4>
+
+<h4>
+  <a href="https://ja.wikipedia.org/wiki/%E3%83%95%E3%83%AC%E3%82%B7%E3%82%A7%E5%BE%AE%E5%88%86">フレシェ微分</a>
+  (<a href="https://en.wikipedia.org/wiki/Fr%C3%A9chet_derivative">Fréchet derivative</a>)
+</h4>
+
+<h4>
+  <a href="https://ja.wikipedia.org/wiki/%E3%83%A9%E3%83%89%E3%83%B3%EF%BC%9D%E3%83%8B%E3%82%B3%E3%83%87%E3%82%A3%E3%83%A0%E3%81%AE%E5%AE%9A%E7%90%86">*ラドン＝ニコディムの定理</a>
+  (<a href="https://en.wikipedia.org/wiki/Radon%E2%80%93Nikodym_theorem">Radon–Nikodym theorem</a>)
+</h4>
+
+<hr/>
+
+<h2>
+  <a href="https://ja.wikipedia.org/wiki/%E5%A4%9A%E6%A7%98%E4%BD%93">多様体</a>
+  (<a href="https://en.wikipedia.org/wiki/Manifold">Manifold</a>)
+</h2>
+
+<h4>
+  <a href="https://ja.wikipedia.org/wiki/%E6%BB%91%E3%82%89%E3%81%8B%E3%81%AA%E9%96%A2%E6%95%B0">滑らかな関数</a>
+  (<a href="https://en.wikipedia.org/wiki/Smoothness">smoothness of a function</a>)
+</h4>
+$C^1$ function
+
+<h4>
+  <a href="https://ja.wikipedia.org/wiki/%E5%9F%8B%E3%82%81%E8%BE%BC%E3%81%BF_(%E6%95%B0%E5%AD%A6)#%E5%BE%AE%E5%88%86%E4%BD%8D%E7%9B%B8%E5%B9%BE%E4%BD%95%E5%AD%A6">埋め込み</a>
+  (<a href="https://en.wikipedia.org/wiki/Embedding">Embedding</a>)
+</h4>
+
+<h4>
+  <a href="https://ja.wikipedia.org/wiki/%E3%81%AF%E3%82%81%E8%BE%BC%E3%81%BF">*はめ込み</a>
+  (<a href="https://en.wikipedia.org/wiki/Immersion_(mathematics)">Immersion</a>)
+</h4>
+
+<h4>
+  <a href="https://ja.wikipedia.org/wiki/%E5%BE%AE%E5%88%86%E5%90%8C%E7%9B%B8%E5%86%99%E5%83%8F">微分同相写像</a>
+  (<a href="https://en.wikipedia.org/wiki/Diffeomorphism">Diffeomorphism</a>)
+</h4>
+
+<h4>
+<a href="https://ja.wikipedia.org/wiki/%E7%AD%89%E9%95%B7%E5%86%99%E5%83%8F">*等長写像</a>
+(<a href="https://en.wikipedia.org/wiki/Isometry">Isometry</a>)
+</h4>
+
+<h4>
+  <a href="https://ja.wikipedia.org/wiki/%E5%8F%AF%E5%BE%AE%E5%88%86%E5%A4%9A%E6%A7%98%E4%BD%93">可微分多様体</a>
+  (<a href="https://en.wikipedia.org/wiki/Differentiable_manifold">Differentiable manifold</a>)
+</h4>
+
+<hr/>
+
+<h2>
+  <a href="https://ja.wikipedia.org/wiki/%E9%96%A2%E6%95%B0%E8%A7%A3%E6%9E%90%E5%AD%A6">関数解析</a>
+  (<a href="https://en.wikipedia.org/wiki/Functional_analysis">Functional analysis</a>)
+</h2>
+
+<h4>
+  <a href="https://en.wikipedia.org/wiki/F-divergence">f-divergence</a>
+  (<a href=""></a>)
+</h4>
+
+<h4>
+  <a href="https://ja.wikipedia.org/wiki/%E5%8F%8C%E5%AF%BE%E3%83%99%E3%82%AF%E3%83%88%E3%83%AB%E7%A9%BA%E9%96%93">*双対ベクトル空間</a>
+  (<a href="https://en.wikipedia.org/wiki/Dual_space">dual vector space</a>)
+</h4>
+<h4>
+  <a href="https://en.wikipedia.org/wiki/Pinsker%27s_inequality">*Pinsker's inequality</a>
+  (<a href=""></a>)
+</h4>
+
+<h4>
+  <a href="https://en.wikipedia.org/wiki/Envelope_theorem">*envelope theorem</a>
+  (<a href=""></a>)
+</h4>
+
+<!--
+
+<h2>
+  <a href=""></a>
+  (<a href=""></a>)
+</h2>
+
+  <h4>
+  <a href=""></a>
+  (<a href=""></a>)
+</h4>
 
 <a href="">weak topology</a><br/>
-
-<a href="">distance</a><br/>
-
-<a href="">compact</a><br/>
-
-<a href="">metric set</a><br/>
-
-<a href="">Borel set</a><br/>
-
-<a href="">probability measure</a><br/>
-
-<a href="">absolutely continuous</a><br/>
-
-$$
-
-$$
-
-<a href="">convergence in distribution</a><br/>
-
 <a href="">Kantorovich-Rubinstein duality</a><br/>
-
-<a href="">bounded</a><br/>
-
-<a href="">uniformly bounded</a><br/>
-
-<a href="">norm</a><br/>
-
-<a href="">signed measure</a><br/>
-
 <a href="">Riesz Representation theorem</a><br/>
 
-<a href="">isometric</a><br/>
+-->
+<hr/>
 
-<a href="">immersion</a><br/>
+$$
+\| \nabla_{z,\theta} g_\theta(z) \| = \| \nabla_z g_\theta(z) + \nabla_\theta g_\theta(z) \|
+\leq \| \nabla_z g_\theta(z) \| + \| \nabla_\theta g_\theta(z) \| 
+\\
+= \| \nabla_z g_\theta(z) \| + \| \sum_{k=1}^H \nabla_{W_k} g_\theta(z) \| 
+\\
+= \| \prod_{i=1}^H W_i D_i \| + \| \sum_{k=1}^H (\prod_{i=k+1}^H W_i D_i ) D_k f_{1:k-1}(z) \|
+$$
 
-<a href="">norm distance</a><br/>
+$\|D_i\| \leq L $ なので
 
-<a href="">norm topology</a><br/>
+$$
+\leq L^H \| \prod_{i=1}^H W_i \| + \| \sum_{k=1}^H (\prod_{i=k+1}^H W_i D_i ) D_k f_{1:k-1}(z) \|
+\\
+\leq L^H \| \prod_{i=1}^H W_i \| + \sum_{k=1}^H \| (\prod_{i=k+1}^H W_i D_i ) D_k f_{1:k-1}(z) \|
+$$
 
-<a href="">dual space</a><br/>
+$ \| f_{1:k-1}(z) \| \leq \| z \| L^{k-1} \prod_{i=1}^{k-1} W_i $ なので
 
-<a href="">bounded convergence theorem</a><br/>
+$$
+\leq L^H \| \prod_{i=1}^H W_i \| + \sum_{k=1}^H \| \prod_{i=k+1}^H W_i D_i \| \cdot \| D_k \| \cdot \| z \| L^{k-1} \prod_{i=1}^{k-1} \| W_i \|
+$$
 
-<a href="">open set</a><br/>
+$\|D_i\| \leq L $ と $\|D_k\| \leq L $ から
 
-<a href="">local Lipschitz</a><br/>
+$$
+\leq L^H \| \prod_{i=1}^H W_i \| + \sum_{k=1}^H  \| z \| L^H \prod_{i=1}^{k-1} \| W_i \| \cdot \prod_{i=k+1}^H \| W_i \|   
+$$
 
-<a href="">Radamacher’s theorem</a><br/>
 
-<a href="">$C^1$ function</a><br/>
-
-<a href="">Radon-Nykodim derivative</a><br/>
-
-<a href="">almost everywhere(a.e.)</a><br/>
-
-<a href="">Pinsker’s inequalities</a><br/>
-
-<a href="">envelope theorem</a><br/>
-
-<a href="">Fubini’s Theorem</a><br/>
-
-<a href="">dominated convergence theorem</a><br/>
-
-<a href=""></a><br/>
-
-<a href=""></a><br/>
+<img src="svg/manifold.svg" />
+<img src="svg/map.svg" />
+<img src="svg/bounded_fnc.svg" />
 
 </body>
 </html>
