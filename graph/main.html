@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+<meta charset="utf-8" />
+<title>Lebesgue積分</title>
+<script type="text/x-mathjax-config">
+    MathJax.Hub.Config({
+        extensions: ["tex2jax.js"],
+        jax: ["input/TeX","output/SVG"],
+        tex2jax: {inlineMath: [["$","$"],["\\(","\\)"]]}
+    });
+</script>
+<script src='https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=TeX-MML-AM_SVG' async></script>
+<!-- <script src='https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=default' async></script> -->
+<!-- <script src='https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=TeX-MML-AM_CHTML' async></script> -->
+<!-- TeX-MML-AM_CHTML -->
+<!-- jax: ["input/TeX","output/HTML-CSS"], -->
+
+<!-- <script type="text/javascript" src="MathJax/MathJax.js" ></script> -->
+
+<script src="js/dagre.min.js"></script>
+<script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.10.1/jquery.min.js"></script>
+<script src="js/graph.js?1"></script>
+<script type="text/javascript">
+var logic_graph;
+function body_onload(){
+    logic_graph = graph_closure();
+    logic_graph.init();
+}
+</script>
+
+<style type="text/css">
+.m {
+    position: absolute;
+}
+</style>
+
+<!-- 
+    border-style:none;
+
+ -->
+</head>
+
+<body onload="body_onload()">
+  <h1>Lebesgue積分</h1>
+
+$$
+  \newcommand{\red}[1]{ \color{red}{#1} }
+$$
+
+<svg version="1.1" baseProfile="full" xmlns="http://www.w3.org/2000/svg" id="svg1" width="13000" height="10000" style="background-color:wheat" ></svg>
+
+</body>
+</html>
