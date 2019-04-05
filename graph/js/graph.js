@@ -324,8 +324,8 @@ function graph_closure(){
 
     class LogicGraph{
 
-        init(){
-            read_file("data/general_topology.txt?" + (new Date()).getTime(), this.make_graph);            
+        init(path){
+            read_file(path, this.make_graph);            
             // waitTypeset(ontypeset);
         }
 
