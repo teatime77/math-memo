@@ -1,6 +1,27 @@
 function graph_closure(){
     var parser;
 
+    function get_indent(line){
+        var indent = 0;
+        while(true){
+            if(line.startsWith("\t")){
+                indent++;
+                line = line.substring(1);    
+            }
+            else if(line.startsWith("    ")){
+                indent++;
+                line = line.substring(4);
+            }
+            else{
+                return [indent, line];
+            }
+        }
+    }
+
+    function tab(indent){
+        return " ".repeat(4 * indent);
+    }
+
     class OrderedMap {
         constructor(){
             this.map = new Map();
@@ -177,7 +198,7 @@ function graph_closure(){
                 this.ele = document.createElement("div");
                 this.ele.style.width = this.width;
             }
-            this.ele.innerText = this.lines.join("\n");
+            this.ele.innerHTML = this.lines.join("\n");
             if(this.id == undefined){
                 this.id = "#" + id_cnt;
 
@@ -192,67 +213,119 @@ function graph_closure(){
     
     class Parser {
         constructor(text){
-            this.lines = text.split('\n').map(x => x.trim());
+            this.lines = text.split('\n');
             console.assert(this.lines.length != 0);
-            this.current_line = this.lines[0];
-            this.current_pos = 1;
+
+            this.current_pos = 0;
+            this.get_next_line();
         }
     
         get_next_line(line){
             if(line != undefined){
-                console.assert(this.current_line == line);
+                console.assert(this.current_line_trim == line);
             }
             this.next_line = null;
-
-            while(this.current_pos < this.lines.length && this.lines[this.current_pos] == ""){
-                this.current_pos++;
-            }
 
             if(this.current_pos < this.lines.length){
     
                 this.current_line = this.lines[this.current_pos];
+                this.current_line_trim = this.current_line.trim();
                 console.log(this.current_line);
                 this.current_pos++;
 
-                for(var pos = this.current_pos; pos < this.lines.length; pos++){
-                    if(this.lines[pos] != ""){
-                        this.next_line = this.lines[pos];
-                        break;
-                    }
+                if(this.current_pos < this.lines.length){
+
+                    this.next_line = this.lines[this.current_pos];
                 }
             }
             else{
                 this.current_line = null;
+                this.current_line_trim = null;
+            }
+        }
+    
+        skip_empty_line(line){
+            while(this.current_line != null && this.current_line_trim == ""){
+                this.get_next_line(line);
+            }
+
+            var pos = this.current_pos;
+            while(this.next_line != null && this.next_line.trim() == "" && pos < this.lines.length){
+                this.next_line = this.lines[pos];
+                pos++;
+            }
+        }
+    
+        get_next_non_empty_line(line){
+            this.get_next_line(line);
+            while(this.current_line != null && this.current_line_trim == ""){
+                this.get_next_line(line);
+            }
+
+            var pos = this.current_pos;
+            while(this.next_line != null && this.next_line.trim() == "" && pos < this.lines.length){
+                this.next_line = this.lines[pos];
+                pos++;
             }
         }
     
 
-        parse_text(){
+        parse_text(nest){
             this.get_next_line("{");
 
             var block = new TextBlock();
                     
-            if(this.current_line.startsWith("id:")){
-                block.id = this.current_line.substring(3).trim();
+            if(this.current_line_trim.startsWith("id:")){
+                block.id = this.current_line_trim.substring(3).trim();
                 this.get_next_line();
             }
             
-            if(this.current_line.startsWith("from:")){
-                var s = this.current_line.substring(5).split(",");
+            if(this.current_line_trim.startsWith("from:")){
+                var s = this.current_line_trim.substring(5).split(",");
                 block.from = s.map(x => x.trim());
                 
                 this.get_next_line();
             }
                     
-            if(this.current_line.startsWith("width:")){
-                block.width = this.current_line.substring(6).trim();
+            if(this.current_line_trim.startsWith("width:")){
+                block.width = this.current_line_trim.substring(6).trim();
                 this.get_next_line();
             }
 
-            while(this.current_line != "}"){
+            var in_math = false;
+            var ul_indent = -1;
+            var indent, line;
+            while(this.current_line_trim != "}"){
+                [indent, line] = get_indent(this.current_line);
+                if(this.current_line_trim == "$$"){
+                    in_math = ! in_math;
+                }
+                else{
+                    if(! in_math && line.startsWith("* ")){
+                        if(ul_indent < indent){
+                            console.assert(ul_indent + 1 == indent);
+                            block.lines.push(tab(indent) + "<ul>")
+                            ul_indent++;
+                        }
+                        else{
+                            while(ul_indent > indent){
+                                block.lines.push(tab(ul_indent) + "</ul>")
+                                ul_indent--;
+                            }                            
+                        }
+                        block.lines.push(tab(indent + 1) + "<li>" + line + "</li>")
+                        this.get_next_line();
+                        continue;                        
+                    }
+                }
                 block.lines.push(this.current_line);
                 this.get_next_line();
             }
+
+            while(ul_indent != -1){
+                block.lines.push(tab(ul_indent) + "</ul>")
+                ul_indent--;
+            }                            
 
             block.make();
 
@@ -261,35 +334,36 @@ function graph_closure(){
             return block;
         }
 
-        parse_imply(){
+        parse_imply(nest){
             var conditions = [];
             
+            this.skip_empty_line();
             while(true){
                 var block;
                 if(this.next_line == "{"){
                     this.get_next_line("{");    
-                    block = this.parse_imply();
+                    block = this.parse_imply(nest + 1);
 
                     this.get_next_line("}");    
                 }
                 else{
 
-                    block = this.parse_text();
+                    block = this.parse_text(nest + 1);
                 }
                 conditions.push(block);    
 
-                if(this.current_line != "&"){
+                if(this.current_line_trim != "&"){
 
                     break;
                 }
                 this.get_next_line("&");    
             }
 
-            if(this.current_line == "->"){
-                while(this.current_line == "->"){
+            if(this.current_line_trim == "->"){
+                while(this.current_line_trim == "->"){
 
                     this.get_next_line("->");
-                    var block = this.parse_text();
+                    var block = this.parse_text(nest + 1);
     
                     console.assert(block.ele != undefined && block.id != undefined);
                     block.conditions = conditions;
@@ -310,6 +384,7 @@ function graph_closure(){
     
         parse(){
             while(this.current_line != null){
+                this.skip_empty_line();
                 console.assert(this.current_line.startsWith("----------"));
                 this.get_next_line();
 
@@ -322,12 +397,15 @@ function graph_closure(){
                 this.id_blocks = new OrderedMap();
                 while(this.current_line != null && ! this.current_line.startsWith("----------")){
         
-                    this.parse_imply(true);
+                    this.parse_imply(0);
+                    this.skip_empty_line();
                 }
         
                 MathJax.Hub.Queue(["Typeset",MathJax.Hub]);
                 MathJax.Hub.Queue([ontypeset, this.id_blocks, svg1]);
-                }
+
+                document.body.appendChild(document.createElement("hr"));
+            }
         }
     }
 

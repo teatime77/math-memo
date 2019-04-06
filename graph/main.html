@@ -27,7 +27,7 @@
 var logic_graph;
 function body_onload(){
     logic_graph = graph_closure();
-    for(let name of [ "wasserstein_gan", "general_topology"]){
+    for(let name of [ "general_topology", "wasserstein_gan", "lebesgue_integral"]){
 
         logic_graph.init(`data/${name}.txt` + "?" + (new Date()).getTime());
     }
