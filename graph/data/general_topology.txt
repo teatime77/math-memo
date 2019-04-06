@@ -1,6 +1,17 @@
 ----------
 
 {
+    定義 : 集合 X に対し X の部分集合の族 $\{O_\lambda \mid \lambda \in \Lambda \}$ が $X$ を被覆する。
+    $$
+    X \subset \bigcup_{\lambda \in \Lambda} O_\lambda
+    $$
+
+    $\{O_\lambda\}$ が開集合の族の場合は開被覆と言う。
+}
+
+----------
+
+{
     ある$M$が存在して、すべての$z$と$\theta$に対し
     $$
     \| g_\theta'(z) - g_\theta(z) \| \leq M
