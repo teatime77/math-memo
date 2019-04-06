@@ -27,8 +27,18 @@
 var logic_graph;
 function body_onload(){
     logic_graph = graph_closure();
-    // logic_graph.init("data/general_topology.txt?" + (new Date()).getTime());
-    logic_graph.init("data/wasserstein_gan.txt?" + (new Date()).getTime());
+    for(let name of [ "wasserstein_gan", "general_topology"]){
+
+        logic_graph.init(`data/${name}.txt` + "?" + (new Date()).getTime());
+    }
+}
+
+function select_onchange(sel){
+    // var idx = sel.selectedIndex;
+    // var path = sel.options[idx].value;
+
+    // logic_graph = graph_closure();
+    // logic_graph.init(path + "?" + (new Date()).getTime());
 }
 </script>
 
@@ -51,7 +61,10 @@ $$
   \newcommand{\red}[1]{ \color{red}{#1} }
 $$
 
-<svg version="1.1" baseProfile="full" xmlns="http://www.w3.org/2000/svg" id="svg1" width="13000" height="10000" style="background-color:wheat" ></svg>
+<select onchange="select_onchange(this)">
+    <option value="data/general_topology.txt">ルベーグ積分</option>
+    <option value="data/wasserstein_gan.txt">Wasserstein GAN</option>
+</select>
 
 </body>
 </html>

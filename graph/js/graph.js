@@ -1,4 +1,5 @@
 function graph_closure(){
+    var parser;
 
     class OrderedMap {
         constructor(){
@@ -27,7 +28,6 @@ function graph_closure(){
     }
 
     var id_cnt = 0;
-    var id_blocks = new OrderedMap();
     
     
     function read_file(path, fnc){
@@ -46,12 +46,6 @@ function graph_closure(){
         );
     }
     
-    function waitTypeset(fnc){
-        typeset_done = false;
-        MathJax.Hub.Queue(["Typeset",MathJax.Hub]);
-        MathJax.Hub.Queue(fnc);
-    }
-    
     var padding = 10;
     
     function last(v){
@@ -66,7 +60,7 @@ function graph_closure(){
         rc.setAttribute("height", nd.height);
         rc.setAttribute("fill", "none");
         rc.setAttribute("stroke", "green");
-        svg1.appendChild(rc);
+        parent.appendChild(rc);
     
         if(nd.label == undefined){
             return;
@@ -107,7 +101,7 @@ function graph_closure(){
         parent.appendChild(path);
     }    
     
-    function ontypeset(){
+    function ontypeset(id_blocks, svg1){
     
         // Create a new directed graph 
         var g = new dagre.graphlib.Graph();
@@ -131,10 +125,10 @@ function graph_closure(){
     
         dagre.layout(g);
     
-        var svg1 = document.getElementById("svg1");
+        // var svg1 = document.getElementById("svg1");
+        //width="13000" height="10000" style="background-color:wheat" 
         // var rc1 = document.getElementById("base").getBoundingClientRect();
     
-        /*
         var max_x = 0, max_y = 0;
         g.nodes().forEach(function(id) {
             var nd = g.node(id);
@@ -144,7 +138,6 @@ function graph_closure(){
     
         svg1.style.width  = max_x + "px";
         svg1.style.height = max_y + "px";
-        */
     
     
         var rc1 = svg1.getBoundingClientRect();
@@ -191,7 +184,7 @@ function graph_closure(){
                 id_cnt++;
             }
             this.ele.id = this.id;
-            id_blocks.set(this.id, this);
+            parser.id_blocks.set(this.id, this);
             document.body.appendChild(this.ele);
             document.body.appendChild(document.createElement("br"));
         }
@@ -314,11 +307,27 @@ function graph_closure(){
                 return conditions[0];
             }
         }
-
+    
         parse(){
             while(this.current_line != null){
-                this.parse_imply(true);
-            }
+                console.assert(this.current_line.startsWith("----------"));
+                this.get_next_line();
+
+                var svg1 = document.createElementNS("http://www.w3.org/2000/svg","svg");
+                svg1.style.width = "13000px";
+                svg1.style.height = "10000px";
+                svg1.style.backgroundColor = "wheat";
+                document.body.appendChild(svg1);
+    
+                this.id_blocks = new OrderedMap();
+                while(this.current_line != null && ! this.current_line.startsWith("----------")){
+        
+                    this.parse_imply(true);
+                }
+        
+                MathJax.Hub.Queue(["Typeset",MathJax.Hub]);
+                MathJax.Hub.Queue([ontypeset, this.id_blocks, svg1]);
+                }
         }
     }
 
@@ -326,13 +335,11 @@ function graph_closure(){
 
         init(path){
             read_file(path, this.make_graph);            
-            // waitTypeset(ontypeset);
         }
 
         make_graph(text){
-            var parser = new Parser(text);
+            parser = new Parser(text);
             parser.parse();
-            waitTypeset(ontypeset);
         }
     
     }
