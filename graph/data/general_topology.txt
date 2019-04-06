@@ -1,8 +1,27 @@
 ----------
 
 {
-    位相空間 $X$ がコンパクトであるとは
+    ある$M$が存在して、すべての$z$と$\theta$に対し
+    $$
+    \| g_\theta'(z) - g_\theta(z) \| \leq M
+    $$
+}
 
-    $X$の任意の開被覆 $\{O_\lambda \mid \lambda \in \Lambda \}$ に対し、有限な添え字 $\lambda_1,\ldots, \lambda_n$ が存在し、$O_{\lambda_1}, \ldots, O_{\lambda_n}$ も $X$ を被覆する。
+----------
 
+{
+    定義 : 位相空間 $X$ がコンパクトである。
+
+    * $X$の任意の開被覆 $\{O_\lambda \mid \lambda \in \Lambda \}$ に対し、有限な添え字 $\lambda_1,\ldots, \lambda_n$ が存在し、$O_{\lambda_1}, \ldots, O_{\lambda_n}$ も $X$ を被覆する。
+
+}
+
+----------
+
+{
+    定理1[2] ― X を距離空間とするとき以下の3つは同値である。
+
+    * X はコンパクトである。
+    * X は点列コンパクトである。
+    * X は全有界かつ完備である。    
 }

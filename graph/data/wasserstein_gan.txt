@@ -2,7 +2,6 @@
 ----------
 
 {
-    width:400px
     $$
     W(\mathbb{P}_r, \mathbb{P}_g) 
     = \displaystyle \inf_{\gamma \in \prod(\mathbb{P}_r, \mathbb{P}_g)} \mathbb{E}_{(x,y)\sim \gamma} \| x-y \|
@@ -10,7 +9,6 @@
 }
 ->
 {
-    width:400px
     $$
     W(\mathbb{P}_r, \mathbb{P}_g) 
     \leq \mathbb{E}_{(x,y)\sim \gamma} \| x-y \|
@@ -23,7 +21,6 @@
 }
 ->
 {
-    width:400px
     ある$M$が存在して、すべての$z$と$\theta$に対し
     $$
     \| g_\theta'(z) - g_\theta(z) \| \leq M
@@ -31,14 +28,12 @@
 }
 
 {
-    width:400px
     $$
     \lim_{\theta' \to \theta} \| g_\theta'(z) - g_\theta(z) \| = 0
     $$
 }
 ->
 {
-    width:400px
     $$
     W(\mathbb{P}_r, \mathbb{P}_g) 
     \leq \mathbb{E}_{(x,y)\sim \gamma} \| x-y \|

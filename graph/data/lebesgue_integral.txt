@@ -44,7 +44,6 @@
 ->
 {
     id:13
-    width:300px
     項別積分諸定理
     優収束定理
     $$
@@ -79,7 +78,6 @@
 {
     id:15
     from:13
-    width:500px
     Fubiniの定理
     $$
     \int_X \int_Y f(x,y) d\mu(y) d\mu(x) = \int_Y \int_X f(x,y) d\mu(x) d\mu(y)

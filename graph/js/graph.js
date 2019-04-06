@@ -52,16 +52,19 @@ function graph_closure(){
     
     
     function read_file(path, fnc){
-        $.ajax({ // 読み込み開始
+        // 読み込み開始
+        $.ajax({ 
             type: 'GET',
             url: path,
             dataType: 'text'
         })
         .then(
-            function(doc) { // 読み込みに成功した時
+            function(doc) { 
+                // 読み込みに成功した時
                 fnc(doc);
             },
-            function() { //読み込みに失敗した時
+            function() { 
+                //読み込みに失敗した時
                 console.log('失敗');
             }
         );
@@ -93,8 +96,6 @@ function graph_closure(){
         text.setAttribute("text-anchor", "middle");
         text.setAttribute("font-size", "20");
         text.setAttribute("dominant-baseline", "middle");
-        // text.setAttribute("");
-        // text.setAttribute("");
     
         text.textContent = nd.label;
     
@@ -121,8 +122,45 @@ function graph_closure(){
         path.setAttribute("d", d);
         parent.appendChild(path);
     }    
+
+    function get_size(ele){
+        var spans = ele.getElementsByTagName("span");
+
+        var min_x = Number.MAX_VALUE, min_y = Number.MAX_VALUE;
+        var max_x = 0, max_y = 0;
+        for(let span of spans){
+            if(span.className == "MathJax_Preview" || span.className == "MJX_Assistive_MathML MJX_Assistive_MathML_Block"){
+                continue;
+            }
+            var rc = span.getBoundingClientRect();
+            console.log("class:" + span.className + " w:" + rc.width);
+            if(span.className == "MathJax_SVG"){
+
+                max_x = Math.max(max_x, rc.width);
+            }
+            else{
+
+                min_x = Math.min(min_x, rc.left);
+                max_x = Math.max(max_x, rc.right);
+            }
+            min_y = Math.min(min_y, rc.top);
+            max_y = Math.max(max_y, rc.bottom);
+        }
+        if(min_x == Number.MAX_VALUE){
+            min_x = 0;
+        }
+
+        return [max_x - min_x, max_y - min_y]
+    }
     
-    function ontypeset(id_blocks, svg1){
+    function ontypeset(id_blocks, svg1, text_blocks){
+        for(let block of text_blocks){
+            var w, h;
+            [w, h] = get_size(block.ele);
+        
+            block.ele.style.width  = w + "px";
+            block.ele.style.height = h + "px";
+        }
     
         // Create a new directed graph 
         var g = new dagre.graphlib.Graph();
@@ -134,9 +172,9 @@ function graph_closure(){
         g.setDefaultEdgeLabel(function() { return {}; });
     
         for(let blc of id_blocks.values()){
-            var ele = blc.ele;
-            var rc = ele.getBoundingClientRect();
-            g.setNode(blc.id,    { width: rc.width + 2 * padding, height: rc.height + 2 * padding });   // label: ele.id,  
+            var width, height;
+            [width, height] = get_size(blc.ele);
+            g.setNode(blc.id,    { width: width + 2 * padding, height: height + 2 * padding });   // label: ele.id,  
 
             for(let id of blc.from){
 
@@ -145,11 +183,7 @@ function graph_closure(){
         }
     
         dagre.layout(g);
-    
-        // var svg1 = document.getElementById("svg1");
-        //width="13000" height="10000" style="background-color:wheat" 
-        // var rc1 = document.getElementById("base").getBoundingClientRect();
-    
+        
         var max_x = 0, max_y = 0;
         g.nodes().forEach(function(id) {
             var nd = g.node(id);
@@ -166,7 +200,6 @@ function graph_closure(){
             var nd = g.node(id);
     
             var ele = id_blocks.get(id).ele;
-            // pairs.push([ele, nd]);
         
             ele.style.position = "absolute";
             ele.style.left = `${window.scrollX + rc1.x + nd.x - nd.width /2 + padding}px`
@@ -189,21 +222,8 @@ function graph_closure(){
         }
 
         make(){
-            if(this.width == undefined){
-
-                this.ele = document.createElement("span");
-            }
-            else{
-
-                this.ele = document.createElement("div");
-                this.ele.style.width = this.width;
-            }
+            this.ele = document.createElement("div");
             this.ele.innerHTML = this.lines.join("\n");
-            if(this.id == undefined){
-                this.id = "#" + id_cnt;
-
-                id_cnt++;
-            }
             this.ele.id = this.id;
             parser.id_blocks.set(this.id, this);
             document.body.appendChild(this.ele);
@@ -218,6 +238,7 @@ function graph_closure(){
 
             this.current_pos = 0;
             this.get_next_line();
+            this.text_blocks = [];
         }
     
         get_next_line(line){
@@ -230,7 +251,7 @@ function graph_closure(){
     
                 this.current_line = this.lines[this.current_pos];
                 this.current_line_trim = this.current_line.trim();
-                console.log(this.current_line);
+                // console.log(this.current_line);
                 this.current_pos++;
 
                 if(this.current_pos < this.lines.length){
@@ -244,6 +265,9 @@ function graph_closure(){
             }
         }
     
+        /*
+            空行をスキップする。
+        */
         skip_empty_line(line){
             while(this.current_line != null && this.current_line_trim == ""){
                 this.get_next_line(line);
@@ -255,29 +279,22 @@ function graph_closure(){
                 pos++;
             }
         }
-    
-        get_next_non_empty_line(line){
-            this.get_next_line(line);
-            while(this.current_line != null && this.current_line_trim == ""){
-                this.get_next_line(line);
-            }
-
-            var pos = this.current_pos;
-            while(this.next_line != null && this.next_line.trim() == "" && pos < this.lines.length){
-                this.next_line = this.lines[pos];
-                pos++;
-            }
-        }
-    
+   
 
         parse_text(nest){
             this.get_next_line("{");
 
             var block = new TextBlock();
+            this.text_blocks.push(block);
                     
             if(this.current_line_trim.startsWith("id:")){
                 block.id = this.current_line_trim.substring(3).trim();
                 this.get_next_line();
+            }
+            else{
+                block.id = "#" + id_cnt;
+
+                id_cnt++;
             }
             
             if(this.current_line_trim.startsWith("from:")){
@@ -286,48 +303,51 @@ function graph_closure(){
                 
                 this.get_next_line();
             }
-                    
-            if(this.current_line_trim.startsWith("width:")){
-                block.width = this.current_line_trim.substring(6).trim();
-                this.get_next_line();
-            }
 
             var in_math = false;
             var ul_indent = -1;
             var indent, line;
             while(this.current_line_trim != "}"){
                 [indent, line] = get_indent(this.current_line);
+                indent -= nest;
                 if(this.current_line_trim == "$$"){
                     in_math = ! in_math;
+                    block.lines.push(this.current_line);
                 }
                 else{
-                    if(! in_math && line.startsWith("* ")){
-                        if(ul_indent < indent){
-                            console.assert(ul_indent + 1 == indent);
-                            block.lines.push(tab(indent) + "<ul>")
-                            ul_indent++;
+                    if(in_math){
+
+                        block.lines.push(this.current_line);
+                    }
+                    else{
+
+                        if(line.startsWith("* ")){
+                            if(ul_indent < indent){
+                                console.assert(ul_indent + 1 == indent);
+                                block.lines.push(tab(indent) + "<ul>")
+                                ul_indent++;
+                            }
+                            else{
+                                while(ul_indent > indent){
+                                    block.lines.push(tab(ul_indent) + "</ul>")
+                                    ul_indent--;
+                                }                            
+                            }
+                            block.lines.push(tab(indent + 1) + "<li><span>" + line.substring(2) + "</span></li>")
                         }
                         else{
-                            while(ul_indent > indent){
-                                block.lines.push(tab(ul_indent) + "</ul>")
-                                ul_indent--;
-                            }                            
+
+                            block.lines.push(tab(indent + 1) + "<span>" + line + "</span><br/>")
                         }
-                        block.lines.push(tab(indent + 1) + "<li>" + line + "</li>")
-                        this.get_next_line();
-                        continue;                        
                     }
                 }
-                block.lines.push(this.current_line);
                 this.get_next_line();
             }
 
             while(ul_indent != -1){
                 block.lines.push(tab(ul_indent) + "</ul>")
                 ul_indent--;
-            }                            
-
-            block.make();
+            }
 
             this.get_next_line("}");
 
@@ -365,7 +385,7 @@ function graph_closure(){
                     this.get_next_line("->");
                     var block = this.parse_text(nest + 1);
     
-                    console.assert(block.ele != undefined && block.id != undefined);
+                    console.assert(block.id != undefined);
                     block.conditions = conditions;
                     block.from = block.from.concat(Array.from(block.conditions.map(x => x.id)));
                     console.log(block.from);
@@ -389,20 +409,25 @@ function graph_closure(){
                 this.get_next_line();
 
                 var svg1 = document.createElementNS("http://www.w3.org/2000/svg","svg");
-                svg1.style.width = "13000px";
-                svg1.style.height = "10000px";
                 svg1.style.backgroundColor = "wheat";
                 document.body.appendChild(svg1);
     
                 this.id_blocks = new OrderedMap();
+                var text_blocks = [];
                 while(this.current_line != null && ! this.current_line.startsWith("----------")){
         
                     this.parse_imply(0);
                     this.skip_empty_line();
+
+                    for(let block of this.text_blocks){
+                        block.make();
+                    }
+                    Array.prototype.push.apply(text_blocks, this.text_blocks);
+                    this.text_blocks = [];
                 }
         
                 MathJax.Hub.Queue(["Typeset",MathJax.Hub]);
-                MathJax.Hub.Queue([ontypeset, this.id_blocks, svg1]);
+                MathJax.Hub.Queue([ontypeset, this.id_blocks, svg1, text_blocks]);
 
                 document.body.appendChild(document.createElement("hr"));
             }
