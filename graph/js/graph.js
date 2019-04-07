@@ -155,8 +155,8 @@ function graph_closure(){
         for(let blc of id_blocks.values()){
             var width, height;
             [width, height] = get_size(blc.ele);
-            blc.ele.style.width  = width + "px";
-            blc.ele.style.height = height + "px";
+            blc.ele.style.width  = (width + 2 * padding) + "px";
+            blc.ele.style.height = (height + 2 * padding) + "px";
 
             g.setNode(blc.id,    { width: width + 2 * padding, height: height + 2 * padding });   // label: ele.id,  
 
@@ -296,6 +296,7 @@ function graph_closure(){
 
             var in_math = false;
             var ul_indent = -1;
+            var prev_line = "";
             var indent, line;
             while(this.current_line_trim != "}"){
                 [indent, line] = get_indent(this.current_line);
@@ -330,10 +331,18 @@ function graph_closure(){
                         }
                         else{
 
-                            block.lines.push(tab(indent + 1) + "<span>" + line + "</span><br/>")
+                            if(prev_line.endsWith("</li>")){
+                                block.lines[block.lines.length - 1] = prev_line.substring(0, prev_line.length - 5) + "<br/>";
+                                block.lines.push(tab(indent + 1) + "<span>" + line + "</span></li>")
+                            }
+                            else{
+
+                                block.lines.push(tab(indent + 1) + "<span>" + line + "</span><br/>")
+                            }
                         }
                     }
                 }
+                prev_line = block.lines[block.lines.length - 1];
                 this.get_next_line();
             }
 

@@ -1,8 +1,45 @@
 ----------
+{
+    # 開集合
+    定義 : 集合 $X$の部分集合の族 $\opensets{O}$ が開集合系である。
+    - 全体集合と空集合は $\opensets{O}$ に属する。
+        $ X \in \opensets{O}, \ \varnothing \in \opensets{O} $
+    - $\opensets{O}$ に属する任意個の集合${\{O_\lambda\}}_{\lambda \in \Lambda}$の合併は $\opensets{O}$ に属する。
+        $ \displaystyle \bigcup_{\lambda \in \Lambda} O_\lambda \in \opensets{O} $
+    - $\opensets{O}$ に属する有限個の集合$O_1,\ldots,O_n$の結合は $\opensets{O}$ に属する。
+        $ O_1 \cap \ldots \cap O_n \in \opensets{O} $
+}
+
+----------
+{
+    # 位相空間
+    定義 : 集合 $X$と開集合系 $\opensets{O}$ の組$(X, \opensets{O})$を位相空間と言う。
+}
+
+----------
+{
+    # 閉集合
+    定義 : 位相空間の部分集合$A$が閉集合である。 $ \define $ $A$の補集合が開集合である。
+}
+
+----------
+{
+    # 閉集合の定理
+    位相空間$X$の閉集合全体の族 $\closedsets{F}$ は以下を満たす
+    - 全体集合と空集合は $\closedsets{F}$ に属する。
+        $ \ X \in \closedsets{F}, \ \varnothing \in \closedsets{F} $
+    - $\closedsets{F}$ に属する任意個の集合${\{F_\lambda\}}_{\lambda \in \Lambda}$の結合は $\closedsets{F}$ に属する。
+        $ \ \displaystyle \bigcap_{\lambda \in \Lambda} F_\lambda \in \closedsets{F} $
+    - $\closedsets{F}$ に属する有限個の集合$F_1,\ldots,F_n$の合併は $\closedsets{F}$ に属する。
+        $ F_1 \cup \ldots \cup F_n \in \closedsets{F} $
+}
+
+----------
 
 {
     # 距離関数
-    定義 : 集合$X$から実数$\setR$への関数$d$が距離関数である。
+    定義 : 集合$X$から実数$\setR$への関数$ \ d:X \to \setR \ $が距離関数である。
+    $ \define x, y \in X \ $ に対し
     - $d(x, y) \geq 0$ （非負性）
     - $d(x, y) = 0   \iff   x = y$ （同一律）
     - $d(x, y) = d(y, x)$ （対称律）
