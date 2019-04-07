@@ -1,6 +1,18 @@
 ----------
 
 {
+    # 距離関数
+    定義 : 集合$X$から実数$\setR$への関数$d$が距離関数である。
+    - $d(x, y) \geq 0$ （非負性）
+    - $d(x, y) = 0   \iff   x = y$ （同一律）
+    - $d(x, y) = d(y, x)$ （対称律）
+    - $d(x, z) \leq d(x, y) + d(y, z)$ （三角不等式）
+}
+
+----------
+
+{
+    # 被覆と開被覆
     定義 : 集合 X に対し X の部分集合の族 $\{O_\lambda \mid \lambda \in \Lambda \}$ が $X$ を被覆する。
     $$
     X \subset \bigcup_{\lambda \in \Lambda} O_\lambda
@@ -21,9 +33,10 @@
 ----------
 
 {
+    # コンパクト
     定義 : 位相空間 $X$ がコンパクトである。
 
-    * $X$の任意の開被覆 $\{O_\lambda \mid \lambda \in \Lambda \}$ に対し、有限な添え字 $\lambda_1,\ldots, \lambda_n$ が存在し、$O_{\lambda_1}, \ldots, O_{\lambda_n}$ も $X$ を被覆する。
+    - $X$の任意の開被覆 $\{O_\lambda \mid \lambda \in \Lambda \}$ に対し、有限な添え字 $\lambda_1,\ldots, \lambda_n$ が存在し、$O_{\lambda_1}, \ldots, O_{\lambda_n}$ も $X$ を被覆する。
 
 }
 
@@ -32,7 +45,7 @@
 {
     定理1[2] ― X を距離空間とするとき以下の3つは同値である。
 
-    * X はコンパクトである。
-    * X は点列コンパクトである。
-    * X は全有界かつ完備である。    
+    - X はコンパクトである。
+    - X は点列コンパクトである。
+    - X は全有界かつ完備である。    
 }

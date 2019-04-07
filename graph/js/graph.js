@@ -50,8 +50,11 @@ function graph_closure(){
 
     var id_cnt = 0;
     
-    
-    function read_file(path, fnc){
+    var read_file_pending;
+    var read_file_doc;
+    function read_file(path){
+        read_file_pending = true;
+        read_file_doc = null;
         // 読み込み開始
         $.ajax({ 
             type: 'GET',
@@ -61,7 +64,8 @@ function graph_closure(){
         .then(
             function(doc) { 
                 // 読み込みに成功した時
-                fnc(doc);
+                read_file_pending = false;
+                read_file_doc = doc;
             },
             function() { 
                 //読み込みに失敗した時
@@ -76,7 +80,7 @@ function graph_closure(){
         return v[v.length - 1];
     }
     
-    function add_node(parent, nd){
+    function add_node_rect(parent, nd){
         var rc = document.createElementNS("http://www.w3.org/2000/svg","rect");
         rc.setAttribute("x", nd.x - nd.width/2);
         rc.setAttribute("y", nd.y - nd.height/2);
@@ -85,21 +89,6 @@ function graph_closure(){
         rc.setAttribute("fill", "none");
         rc.setAttribute("stroke", "green");
         parent.appendChild(rc);
-    
-        if(nd.label == undefined){
-            return;
-        }
-    
-        var text = document.createElementNS("http://www.w3.org/2000/svg","text");
-        text.setAttribute("x", nd.x);
-        text.setAttribute("y", nd.y);
-        text.setAttribute("text-anchor", "middle");
-        text.setAttribute("font-size", "20");
-        text.setAttribute("dominant-baseline", "middle");
-    
-        text.textContent = nd.label;
-    
-        parent.appendChild(text);
     }
     
     function add_edge(parent, ed){
@@ -133,7 +122,7 @@ function graph_closure(){
                 continue;
             }
             var rc = span.getBoundingClientRect();
-            console.log("class:" + span.className + " w:" + rc.width);
+            console.log(`${span.className} rc:${rc.x},${rc.y},${rc.width},${rc.height}, ${span.innerText.replace('\n', ' ')}`);
             if(span.className == "MathJax_SVG"){
 
                 max_x = Math.max(max_x, rc.width);
@@ -153,15 +142,7 @@ function graph_closure(){
         return [max_x - min_x, max_y - min_y]
     }
     
-    function ontypeset(id_blocks, svg1, text_blocks){
-        for(let block of text_blocks){
-            var w, h;
-            [w, h] = get_size(block.ele);
-        
-            block.ele.style.width  = w + "px";
-            block.ele.style.height = h + "px";
-        }
-    
+    function ontypeset(id_blocks, svg1){    
         // Create a new directed graph 
         var g = new dagre.graphlib.Graph();
     
@@ -174,6 +155,9 @@ function graph_closure(){
         for(let blc of id_blocks.values()){
             var width, height;
             [width, height] = get_size(blc.ele);
+            blc.ele.style.width  = width + "px";
+            blc.ele.style.height = height + "px";
+
             g.setNode(blc.id,    { width: width + 2 * padding, height: height + 2 * padding });   // label: ele.id,  
 
             for(let id of blc.from){
@@ -205,7 +189,7 @@ function graph_closure(){
             ele.style.left = `${window.scrollX + rc1.x + nd.x - nd.width /2 + padding}px`
             ele.style.top  = `${window.scrollY + rc1.y + nd.y - nd.height/2 + padding}px`
     
-            add_node(svg1, nd);
+            add_node_rect(svg1, nd);
         });
     
     
@@ -213,6 +197,8 @@ function graph_closure(){
             var ed = g.edge(e);
             add_edge(svg1, ed);
         });         
+
+        theGraph.pending = false;
     }
     
     class TextBlock {
@@ -221,11 +207,13 @@ function graph_closure(){
             this.from = [];
         }
 
+        /*
+            HTML要素を作る。
+        */
         make(){
             this.ele = document.createElement("div");
             this.ele.innerHTML = this.lines.join("\n");
             this.ele.id = this.id;
-            parser.id_blocks.set(this.id, this);
             document.body.appendChild(this.ele);
             document.body.appendChild(document.createElement("br"));
         }
@@ -238,9 +226,11 @@ function graph_closure(){
 
             this.current_pos = 0;
             this.get_next_line();
-            this.text_blocks = [];
         }
     
+        /*
+            次行を得る。
+        */
         get_next_line(line){
             if(line != undefined){
                 console.assert(this.current_line_trim == line);
@@ -285,7 +275,6 @@ function graph_closure(){
             this.get_next_line("{");
 
             var block = new TextBlock();
-            this.text_blocks.push(block);
                     
             if(this.current_line_trim.startsWith("id:")){
                 block.id = this.current_line_trim.substring(3).trim();
@@ -296,6 +285,7 @@ function graph_closure(){
 
                 id_cnt++;
             }
+            this.id_blocks.set(block.id, block);
             
             if(this.current_line_trim.startsWith("from:")){
                 var s = this.current_line_trim.substring(5).split(",");
@@ -321,7 +311,10 @@ function graph_closure(){
                     }
                     else{
 
-                        if(line.startsWith("* ")){
+                        if(line.startsWith("# ")){
+                            block.lines.push(tab(indent + 1) + "<strong><span>" + line.substring(2) + "</span></strong><br/>")
+                        }
+                           else if(line.startsWith("- ")){
                             if(ul_indent < indent){
                                 console.assert(ul_indent + 1 == indent);
                                 block.lines.push(tab(indent) + "<ul>")
@@ -388,7 +381,6 @@ function graph_closure(){
                     console.assert(block.id != undefined);
                     block.conditions = conditions;
                     block.from = block.from.concat(Array.from(block.conditions.map(x => x.id)));
-                    console.log(block.from);
 
                     conditions = [ block ];
                 }
@@ -402,8 +394,15 @@ function graph_closure(){
             }
         }
     
-        parse(){
+        *parse(){
             while(this.current_line != null){
+
+                while(theGraph.pending){
+                    yield;
+                }
+
+                theGraph.pending = true;
+
                 this.skip_empty_line();
                 console.assert(this.current_line.startsWith("----------"));
                 this.get_next_line();
@@ -413,38 +412,54 @@ function graph_closure(){
                 document.body.appendChild(svg1);
     
                 this.id_blocks = new OrderedMap();
-                var text_blocks = [];
                 while(this.current_line != null && ! this.current_line.startsWith("----------")){
         
                     this.parse_imply(0);
                     this.skip_empty_line();
-
-                    for(let block of this.text_blocks){
-                        block.make();
-                    }
-                    Array.prototype.push.apply(text_blocks, this.text_blocks);
-                    this.text_blocks = [];
                 }
-        
+
+                for(let block of this.id_blocks.values()){
+                    block.make();
+                }
+    
                 MathJax.Hub.Queue(["Typeset",MathJax.Hub]);
-                MathJax.Hub.Queue([ontypeset, this.id_blocks, svg1, text_blocks]);
+                MathJax.Hub.Queue([ontypeset, this.id_blocks, svg1]);
 
                 document.body.appendChild(document.createElement("hr"));
+            }
+
+            while(theGraph.pending){
+                yield;
             }
         }
     }
 
+    var theGraph;
     class LogicGraph{
 
-        init(path){
-            read_file(path, this.make_graph);            
+        constructor(){
+            theGraph = this;
+            this.pending = false;
         }
 
-        make_graph(text){
-            parser = new Parser(text);
-            parser.parse();
+        *init(path){
+            read_file(path);
+            while(read_file_pending){
+                yield;
+            }
+
+            parser = new Parser(read_file_doc);
+            var gen_parse = parser.parse();
+
+            while(true){
+
+                var ret = gen_parse.next();
+                if(ret.done){
+                    break;
+                }   
+                yield;
+            }
         }
-    
     }
 
     return new LogicGraph();
