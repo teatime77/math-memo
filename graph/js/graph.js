@@ -473,3 +473,26 @@ function graph_closure(){
 
     return new LogicGraph();
 }
+
+function body_onload(){
+    var logic_graph = graph_closure();
+
+    var file_names = [ "general_topology", "wasserstein_gan", "lebesgue_integral"];
+    var name = file_names.shift();
+
+    var init = logic_graph.init(`data/${name}.txt` + "?" + (new Date()).getTime());
+    var timer_id = setInterval(function(){
+        var ret = init.next();
+        if(ret.done){
+            if(file_names.length != 0){
+
+                name = file_names.shift();
+                init = logic_graph.init(`data/${name}.txt` + "?" + (new Date()).getTime());
+            }
+            else{
+
+                clearInterval(timer_id);
+            }
+        }
+    },100);
+}
