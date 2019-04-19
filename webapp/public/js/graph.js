@@ -122,7 +122,7 @@ function graph_closure(){
                 continue;
             }
             var rc = span.getBoundingClientRect();
-            console.log(`${span.className} rc:${rc.x},${rc.y},${rc.width},${rc.height}, ${span.innerText.replace('\n', ' ')}`);
+            // console.log(`${span.className} rc:${rc.x},${rc.y},${rc.width},${rc.height}, ${span.innerText.replace('\n', ' ')}`);
             if(span.className == "MathJax_SVG"){
 
                 max_x = Math.max(max_x, rc.width);
@@ -298,7 +298,9 @@ function graph_closure(){
             var ul_indent = -1;
             var prev_line = "";
             var indent, line;
+            block.lines2 = [];
             while(this.current_line_trim != "}"){
+                block.lines2.push(this.current_line);
                 [indent, line] = get_indent(this.current_line);
                 indent -= nest;
                 if(this.current_line_trim == "$$"){
@@ -357,29 +359,12 @@ function graph_closure(){
         }
 
         parse_imply(nest){
-            var conditions = [];
+            var prev_block;
             
             this.skip_empty_line();
-            while(true){
-                var block;
-                if(this.next_line == "{"){
-                    this.get_next_line("{");    
-                    block = this.parse_imply(nest + 1);
+            var prev_block = this.parse_text(nest + 1);
 
-                    this.get_next_line("}");    
-                }
-                else{
-
-                    block = this.parse_text(nest + 1);
-                }
-                conditions.push(block);    
-
-                if(this.current_line_trim != "&"){
-
-                    break;
-                }
-                this.get_next_line("&");    
-            }
+            console.assert(this.current_line_trim != "&")
 
             if(this.current_line_trim == "->"){
                 while(this.current_line_trim == "->"){
@@ -388,18 +373,15 @@ function graph_closure(){
                     var block = this.parse_text(nest + 1);
     
                     console.assert(block.id != undefined);
-                    block.conditions = conditions;
-                    block.from = block.from.concat(Array.from(block.conditions.map(x => x.id)));
-
-                    conditions = [ block ];
+                    block.from.push(prev_block.id);
+                    prev_block = block;
                 }
 
                 return block;
             }
             else{
 
-                console.assert(conditions.length == 1);
-                return conditions[0];
+                return prev_block;
             }
         }
     
@@ -426,6 +408,16 @@ function graph_closure(){
                     this.parse_imply(0);
                     this.skip_empty_line();
                 }
+                console.log(">>>>>>>>>>--------------------------------------------------");
+                for(let block of this.id_blocks.values()){
+                    console.log(`id:${block.id}`)
+                    console.log(`from:${block.from.join(' ')}`)
+                    for(let line of block.lines2){
+                        console.log(`\t${line}`);
+                    }
+                }
+                // console.log(JSON.stringify(this.id_blocks.values()));
+                console.log("<<<<<<<<<<--------------------------------------------------");
 
                 for(let block of this.id_blocks.values()){
                     block.make();
