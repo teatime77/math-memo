@@ -467,6 +467,33 @@ function graph_closure(){
 }
 
 function body_onload(){
+    console.log("body on-load");
+
+    var path = "https://asia-northeast1-hip-rig-238101.cloudfunctions.net/helloWorld";
+    // 読み込み開始
+    $.ajax({ 
+        url: path,
+        // type: 'GET',
+        // dataType: 'text'
+        type:'POST',
+        dataType: 'json',
+        data : { 'id' : 'abc', 'lines' : 'DEF' },
+
+    })
+    .then(
+        function(doc) { 
+            // 読み込みに成功した時
+
+            console.log("function:" + doc);
+        },
+        function() { 
+            //読み込みに失敗した時
+            console.log('失敗');
+        }
+    );
+
+
+
     var logic_graph = graph_closure();
 
     var file_names = [ "general_topology", "wasserstein_gan", "lebesgue_integral"];
@@ -486,5 +513,5 @@ function body_onload(){
                 clearInterval(timer_id);
             }
         }
-    },100);
+    },10);
 }
