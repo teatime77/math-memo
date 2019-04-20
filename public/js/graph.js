@@ -1,6 +1,26 @@
 function graph_closure(){
     var parser;
+    var users_path = "https://asia-northeast1-hip-rig-238101.cloudfunctions.net/api/users";
 
+    function db_opr(fnc_url, action, payload){
+        $.ajax({
+            url : fnc_url,
+            type: 'POST',        
+            data: { action: action, payload: payload }
+        })
+        // Ajaxリクエストが成功した時発動
+        .done( (data) => {
+            console.log("ok:" + data);
+        })
+        // Ajaxリクエストが失敗した時発動
+        .fail( (data) => {
+            console.log("err:" + data);
+        })
+        // Ajaxリクエストが成功・失敗どちらでも発動
+        .always( (data) => {
+        });
+    }
+    
     function get_indent(line){
         var indent = 0;
         while(true){
@@ -408,16 +428,22 @@ function graph_closure(){
                     this.parse_imply(0);
                     this.skip_empty_line();
                 }
-                console.log(">>>>>>>>>>--------------------------------------------------");
+                // console.log(">>>>>>>>>>--------------------------------------------------");
+                var blocks = [];
                 for(let block of this.id_blocks.values()){
-                    console.log(`id:${block.id}`)
-                    console.log(`from:${block.from.join(' ')}`)
-                    for(let line of block.lines2){
-                        console.log(`\t${line}`);
-                    }
+                    // console.log(`id:${block.id}`)
+                    // console.log(`from:${block.from.join(' ')}`)
+                    // for(let line of block.lines2){
+                    //     console.log(`\t${line}`);
+                    // }
+                    var payload = { id: block.id, from: block.from, lines: block.lines2 };
+                    console.log("put", block.id, block.from);
+                    db_opr(users_path, "put", payload);
+                    blocks.push(payload)
                 }
+
                 // console.log(JSON.stringify(this.id_blocks.values()));
-                console.log("<<<<<<<<<<--------------------------------------------------");
+                // console.log("<<<<<<<<<<--------------------------------------------------");
 
                 for(let block of this.id_blocks.values()){
                     block.make();
@@ -439,6 +465,8 @@ function graph_closure(){
     class LogicGraph{
 
         constructor(){
+            db_opr(users_path, "test", { id : 'よろしく', lines : 'こんにちは' });
+
             theGraph = this;
             this.pending = false;
         }
@@ -469,27 +497,8 @@ function graph_closure(){
 function body_onload(){
     console.log("body on-load");
 
-    var path = "https://asia-northeast1-hip-rig-238101.cloudfunctions.net/api/users";
-
-    $.ajax({
-        url:path,
-        type:'POST',
-        data:{
-            id : 'よろしく', lines : 'こんにちは'
-        }
-    })
-    // Ajaxリクエストが成功した時発動
-    .done( (data) => {
-        console.log("ok:" + data);
-    })
-    // Ajaxリクエストが失敗した時発動
-    .fail( (data) => {
-        console.log("err:" + data);
-    })
-    // Ajaxリクエストが成功・失敗どちらでも発動
-    .always( (data) => {
-
-    });
+    // はじめてのAjax(jQuery) 2018年版
+    //      https://qiita.com/zakiyamaaaaa/items/bdda422db2ccbaea60d9
 
     var logic_graph = graph_closure();
 
