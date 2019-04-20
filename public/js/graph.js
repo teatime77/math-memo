@@ -2,7 +2,7 @@ function graph_closure(){
     var parser;
     var users_path = "https://asia-northeast1-hip-rig-238101.cloudfunctions.net/api/users";
 
-    function db_opr(fnc_url, action, payload){
+    function db_opr(fnc_url, action, payload, fnc){
         $.ajax({
             url : fnc_url,
             type: 'POST',        
@@ -10,7 +10,11 @@ function graph_closure(){
         })
         // Ajaxリクエストが成功した時発動
         .done( (data) => {
-            console.log("ok:" + data);
+            console.log("post ok");
+
+            if(fnc != undefined){
+                fnc(data);
+            }
         })
         // Ajaxリクエストが失敗した時発動
         .fail( (data) => {
@@ -68,6 +72,7 @@ function graph_closure(){
         }
     }
 
+    var doc_cnt = 0;
     var id_cnt = 0;
     
     var read_file_pending;
@@ -431,16 +436,20 @@ function graph_closure(){
                 // console.log(">>>>>>>>>>--------------------------------------------------");
                 var blocks = [];
                 for(let block of this.id_blocks.values()){
-                    // console.log(`id:${block.id}`)
-                    // console.log(`from:${block.from.join(' ')}`)
-                    // for(let line of block.lines2){
-                    //     console.log(`\t${line}`);
-                    // }
-                    var payload = { id: block.id, from: block.from, lines: block.lines2 };
-                    console.log("put", block.id, block.from);
-                    db_opr(users_path, "put", payload);
-                    blocks.push(payload)
+                    blocks.push( { id: block.id, from: block.from, lines: block.lines2 } )
                 }
+                var doc = { id:doc_cnt, name:("#doc-" + doc_cnt), blocks: blocks };
+                doc_cnt++;
+                db_opr(users_path, "put", doc, function(data){
+                    var dt = JSON.parse(data);
+                    console.log(dt);
+
+                    db_opr(users_path, "get", {id:doc.id}, function(data){
+                        var dt = JSON.parse(data);
+                        console.log(dt);
+                    });
+    
+                });
 
                 // console.log(JSON.stringify(this.id_blocks.values()));
                 // console.log("<<<<<<<<<<--------------------------------------------------");

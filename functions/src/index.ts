@@ -25,7 +25,7 @@ app.post('/users', (req:any, res:any) => {
     ];
 
     let dt = "";
-    if(req.body.action === "get"){
+    if(req.body.action === "get2"){
         dt = "start";
         db.collection('users').get()
         .then((snapshot:any) => {
@@ -43,34 +43,70 @@ app.post('/users', (req:any, res:any) => {
             res.status(200).send(`db:[${dt}] id: ${req.body.id} lines:${req.body.lines}` + JSON.stringify(users));
         });        
     }
+    else if(req.body.action === "get"){
+        const doc_id = req.body.payload.id;
+
+        const docRef = db.collection('docs').doc(doc_id);
+        docRef.get()
+            .then((doc_inf:any) => {
+                if (!doc_inf.exists) {
+                    res.status(200).send(JSON.stringify({ status: "not exists", payload: req.body.payload }));
+                } 
+                else {
+                    const doc = doc_inf.data();
+                    doc.id = doc_id;
+                    doc.blocks = [];
+
+                    docRef.collection('blocks').get()
+                    .then((snapshot:any) => {
+                        snapshot.forEach((block_inf:any) => {
+                            const block = block_inf.data();
+                            doc.blocks.push(block);
+                        });
+                
+                        // データを返却
+                        res.status(200).send(JSON.stringify({ doc: doc }));
+                    })
+                    .catch((err:any) => {
+                        res.status(200).send(JSON.stringify({ err: err, payload: req.body.payload, doc: doc }));
+                    });
+                }
+            })
+            .catch((err:any) => {
+                res.status(200).send(JSON.stringify({ err: err, payload: req.body.payload }));
+            });
+    }
     else if(req.body.action === "put"){
-        // for(const block of req.body.payload){
-        // }
+        const doc = req.body.payload;
 
-        // payload = { id: block.id, from: block.from, lines: block.lines2 }
-        const payload = req.body.payload;
-        const docRef = db.collection('users').doc(payload.id);
+        const docRef = db.collection('docs').doc(doc.id);
+        docRef.set({
+            id  : doc.id,
+            name: doc.name
+        });
 
-        if(payload.from === undefined){
+        for(const block of doc.blocks){
+            
+            const blockRef = docRef.collection('blocks').doc(block.id);
 
-            docRef.set({
-                // from : payload.from,
-                lines: payload.lines
-              // from : "FROM",
-                // lines: "LINES"
-              });
-              }
-        else{
+            if(block.from === undefined){
 
-            docRef.set({
-                from : payload.from,
-                lines: payload.lines
-              // from : "FROM",
-                // lines: "LINES"
-              });
+                blockRef.set({
+                    id   : block.id,
+                    lines: block.lines
+                });
+            }
+            else{
+    
+                blockRef.set({
+                    id   : block.id,
+                    from : block.from,
+                    lines: block.lines
+                });
+            }
         }
 
-        res.status(200).send("put end:" + JSON.stringify(payload));
+        res.status(200).send(JSON.stringify({ action:"put", status: "ok", doc: doc}));
     }
     else if(req.body.action === "test") {      
 
