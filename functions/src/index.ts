@@ -53,23 +53,8 @@ app.post('/users', (req:any, res:any) => {
                     res.status(200).send(JSON.stringify({ status: "not exists", payload: req.body.payload }));
                 } 
                 else {
-                    const doc = doc_inf.data();
-                    doc.id = doc_id;
-                    doc.blocks = [];
 
-                    docRef.collection('blocks').get()
-                    .then((snapshot:any) => {
-                        snapshot.forEach((block_inf:any) => {
-                            const block = block_inf.data();
-                            doc.blocks.push(block);
-                        });
-                
-                        // データを返却
-                        res.status(200).send(JSON.stringify({ doc: doc }));
-                    })
-                    .catch((err:any) => {
-                        res.status(200).send(JSON.stringify({ err: err, payload: req.body.payload, doc: doc }));
-                    });
+                    res.status(200).send(JSON.stringify({ doc: doc_inf.data() }));
                 }
             })
             .catch((err:any) => {
@@ -82,29 +67,9 @@ app.post('/users', (req:any, res:any) => {
         const docRef = db.collection('docs').doc(doc.id);
         docRef.set({
             id  : doc.id,
-            name: doc.name
+            name: doc.name,
+            blocks_str: doc.blocks_str
         });
-
-        for(const block of doc.blocks){
-            
-            const blockRef = docRef.collection('blocks').doc(block.id);
-
-            if(block.from === undefined){
-
-                blockRef.set({
-                    id   : block.id,
-                    lines: block.lines
-                });
-            }
-            else{
-    
-                blockRef.set({
-                    id   : block.id,
-                    from : block.from,
-                    lines: block.lines
-                });
-            }
-        }
 
         res.status(200).send(JSON.stringify({ action:"put", status: "ok", doc: doc}));
     }

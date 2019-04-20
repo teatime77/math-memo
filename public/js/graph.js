@@ -8,16 +8,16 @@ function graph_closure(){
             type: 'POST',        
             data: { action: action, payload: payload }
         })
-        // Ajaxリクエストが成功した時発動
         .done( (data) => {
-            console.log("post ok");
+            // Ajaxリクエストが成功した時
 
             if(fnc != undefined){
                 fnc(data);
             }
         })
-        // Ajaxリクエストが失敗した時発動
         .fail( (data) => {
+            // Ajaxリクエストが失敗した時
+
             console.log("err:" + data);
         })
         // Ajaxリクエストが成功・失敗どちらでも発動
@@ -342,7 +342,7 @@ function graph_closure(){
                         if(line.startsWith("# ")){
                             block.lines.push(tab(indent + 1) + "<strong><span>" + line.substring(2) + "</span></strong><br/>")
                         }
-                           else if(line.startsWith("- ")){
+                        else if(line.startsWith("- ")){
                             if(ul_indent < indent){
                                 console.assert(ul_indent + 1 == indent);
                                 block.lines.push(tab(indent) + "<ul>")
@@ -438,17 +438,16 @@ function graph_closure(){
                 for(let block of this.id_blocks.values()){
                     blocks.push( { id: block.id, from: block.from, lines: block.lines2 } )
                 }
-                var doc = { id:doc_cnt, name:("#doc-" + doc_cnt), blocks: blocks };
+                var doc = { id:doc_cnt, name:("#doc-" + doc_cnt), blocks_str: JSON.stringify(blocks) };
                 doc_cnt++;
                 db_opr(users_path, "put", doc, function(data){
-                    var dt = JSON.parse(data);
-                    console.log(dt);
-
                     db_opr(users_path, "get", {id:doc.id}, function(data){
                         var dt = JSON.parse(data);
-                        console.log(dt);
+                        var doc2 = dt.doc;
+                        doc2.blocks = JSON.parse(doc2.blocks_str);
+                        delete doc2.blocks_str;
+                        console.log("get", doc2);
                     });
-    
                 });
 
                 // console.log(JSON.stringify(this.id_blocks.values()));
