@@ -469,30 +469,27 @@ function graph_closure(){
 function body_onload(){
     console.log("body on-load");
 
-    var path = "https://asia-northeast1-hip-rig-238101.cloudfunctions.net/helloWorld";
-    // 読み込み開始
-    $.ajax({ 
-        url: path,
-        // type: 'GET',
-        // dataType: 'text'
+    var path = "https://asia-northeast1-hip-rig-238101.cloudfunctions.net/api/users";
+
+    $.ajax({
+        url:path,
         type:'POST',
-        dataType: 'json',
-        data : { 'id' : 'abc', 'lines' : 'DEF' },
-
-    })
-    .then(
-        function(doc) { 
-            // 読み込みに成功した時
-
-            console.log("function:" + doc);
-        },
-        function() { 
-            //読み込みに失敗した時
-            console.log('失敗');
+        data:{
+            id : 'よろしく', lines : 'こんにちは'
         }
-    );
+    })
+    // Ajaxリクエストが成功した時発動
+    .done( (data) => {
+        console.log("ok:" + data);
+    })
+    // Ajaxリクエストが失敗した時発動
+    .fail( (data) => {
+        console.log("err:" + data);
+    })
+    // Ajaxリクエストが成功・失敗どちらでも発動
+    .always( (data) => {
 
-
+    });
 
     var logic_graph = graph_closure();
 

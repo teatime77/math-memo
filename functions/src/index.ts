@@ -1,16 +1,26 @@
-import * as functions from 'firebase-functions';
+const functions = require('firebase-functions');
+const express = require("express");
+const cors = require('cors');
 
-const cors = require('cors')({origin: true});
+const app = express();
 
-// // Start writing Firebase Functions
-// // https://firebase.google.com/docs/functions/typescript
-//
-export const helloWorld = functions.region('asia-northeast1').https
-.onRequest((req, res) => {
-    cors(req, res, () => {
-        // res.status(500).send({test: 'Testing functions'});
-        res.status(200).send("cors Hello from Firebase [" + req.body["id"] + "]" );
-        // res.status(200).send("cors Hello from Firebase [" );
-    });
-    // res.send("Hello from Firebase!");
+app.use(cors({ origin: true }));
+
+app.post('/users', (req:any, res:any) => {
+    const users = [
+        { "id": 1, "name": "イリヤ" },
+        { "id": 2, "name": "美遊" },
+        { "id": 3, "name": "クロエ" },
+        { "id": 4, "name": "オルタ" },
+        { "id": 5, "name": "マシュ" }
+      ];
+    
+      // データを返却
+      res.status(200).send(`id: ${req.body.id} lines:${req.body.lines}` + JSON.stringify(users));
 });
+
+const api = functions.region('asia-northeast1').https.onRequest(app);
+module.exports = { api };
+
+
+
