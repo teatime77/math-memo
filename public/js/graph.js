@@ -25,6 +25,12 @@ function graph_closure(){
         .always( (data) => {
         });
     }
+
+    function restore_doc(doc){
+        doc.id = parseInt(doc.id, 10);
+        doc.blocks = JSON.parse(doc.blocks_str);
+        delete doc.blocks_str;
+    }
     
     function get_indent(line){
         var indent = 0;
@@ -236,9 +242,9 @@ function graph_closure(){
         /*
             HTML要素を作る。
         */
-        make(){
+        make(html_lines){
             this.ele = document.createElement("div");
-            this.ele.innerHTML = this.lines.join("\n");
+            this.ele.innerHTML = html_lines.join("\n");
             this.ele.id = this.id;
             document.body.appendChild(this.ele);
             document.body.appendChild(document.createElement("br"));
@@ -455,7 +461,7 @@ function graph_closure(){
                 // console.log("<<<<<<<<<<--------------------------------------------------");
 
                 for(let block of this.id_blocks.values()){
-                    block.make();
+                    block.make(block.lines);
                 }
     
                 MathJax.Hub.Queue(["Typeset",MathJax.Hub]);
@@ -498,12 +504,137 @@ function graph_closure(){
                 yield;
             }
         }
+
+        make_html_lines(lines){
+            var html_lines = [];            
+
+            var in_math = false;
+            var ul_indent = -1;
+            var prev_line = "";
+            var indent, line;
+            for(let current_line of lines){
+                var current_line_trim = current_line.trim();
+
+                [indent, line] = get_indent(current_line);
+                indent--;
+
+                if(current_line_trim == "$$"){
+                    in_math = ! in_math;
+                    html_lines.push(current_line);
+                }
+                else{
+                    if(in_math){
+
+                        html_lines.push(current_line);
+                    }
+                    else{
+
+                        if(line.startsWith("# ")){
+                            html_lines.push(tab(indent + 1) + "<strong><span>" + line.substring(2) + "</span></strong><br/>")
+                        }
+                        else if(line.startsWith("- ")){
+                            if(ul_indent < indent){
+                                console.assert(ul_indent + 1 == indent);
+                                html_lines.push(tab(indent) + "<ul>")
+                                ul_indent++;
+                            }
+                            else{
+                                while(ul_indent > indent){
+                                    html_lines.push(tab(ul_indent) + "</ul>")
+                                    ul_indent--;
+                                }                            
+                            }
+                            html_lines.push(tab(indent + 1) + "<li><span>" + line.substring(2) + "</span></li>")
+                        }
+                        else{
+
+                            if(prev_line.endsWith("</li>")){
+                                html_lines[html_lines.length - 1] = prev_line.substring(0, prev_line.length - 5) + "<br/>";
+                                html_lines.push(tab(indent + 1) + "<span>" + line + "</span></li>")
+                            }
+                            else{
+
+                                html_lines.push(tab(indent + 1) + "<span>" + line + "</span><br/>")
+                            }
+                        }
+                    }
+                }
+
+                prev_line = html_lines[html_lines.length - 1];
+            }
+
+            while(ul_indent != -1){
+                html_lines.push(tab(ul_indent) + "</ul>")
+                ul_indent--;
+            }
+
+            return html_lines;
+        }
+
+        *show_doc(docs){
+            for(let doc of docs){
+                while(theGraph.pending){
+                    yield;
+                }
+
+                theGraph.pending = true;
+
+                var svg1 = document.createElementNS("http://www.w3.org/2000/svg","svg");
+                svg1.style.backgroundColor = "wheat";
+                document.body.appendChild(svg1);
+
+                var id_blocks = new OrderedMap();
+
+                for(let blc of doc.blocks){
+                    var block = new TextBlock();
+
+                    block.id = blc.id;
+                    block.from = blc.from;
+                    block.lines = blc.lines;
+
+                    id_blocks.set(block.id, block);
+
+
+                    var html_lines = this.make_html_lines(block.lines);
+                    block.make(html_lines);
+                }
+
+                MathJax.Hub.Queue(["Typeset",MathJax.Hub]);
+                MathJax.Hub.Queue([ontypeset, id_blocks, svg1]);
+
+                document.body.appendChild(document.createElement("hr"));
+            }
+        }
+
+        read_docs(){
+            db_opr(users_path, "get-all-docs", {}, (doc, data) => {
+
+                data.docs.map(x => restore_doc(x));
+                data.docs.sort((x,y) => x.id - y.id);
+                for(let doc of data.docs){
+                    console.log(doc)
+                }
+
+                var gen_show_doc = this.show_doc(data.docs);
+                var timer_id = setInterval(function(){
+                    var ret = gen_show_doc.next();
+                    if(ret.done){
+                        clearInterval(timer_id);
+                    }
+                },10);                
+            });
+        }
     }
 
     return new LogicGraph();
 }
 
 function body_onload(){
+    var logic_graph = graph_closure();
+    logic_graph.read_docs();
+}
+
+function body_onload2(){
     console.log("body on-load");
 
     // はじめてのAjax(jQuery) 2018年版

@@ -15,32 +15,18 @@ const app = express();
 app.use(cors({ origin: true }));
 
 app.post('/users', (req:any, res:any) => {
-
-    const users = [
-        { "id": 1, "name": "イリヤ" },
-        { "id": 2, "name": "美遊" },
-        { "id": 3, "name": "クロエ" },
-        { "id": 4, "name": "オルタ" },
-        { "id": 5, "name": "マシュ" }
-    ];
-
-    let dt = "";
-    if(req.body.action === "get2"){
-        dt = "start";
-        db.collection('users').get()
+    if(req.body.action === "get-all-docs"){
+        db.collection('docs').get()
         .then((snapshot:any) => {
+            const docs: any[] = [];
             snapshot.forEach((doc:any) => {
-                dt += "[" + doc.id + '=>' + doc.data() + "]\n";
+                docs.push(doc.data());
             });
-    
-            // データを返却
-            res.status(200).send(`db:[${dt}] id: ${req.body.id} lines:${req.body.lines}` + JSON.stringify(users));
+
+            res.status(200).send(JSON.stringify({ status: "ok", docs: docs }));
         })
         .catch((err:any) => {
-            dt = 'Error getting documents:' + err;
-    
-            // データを返却
-            res.status(200).send(`db:[${dt}] id: ${req.body.id} lines:${req.body.lines}` + JSON.stringify(users));
+            res.status(200).send(JSON.stringify({ status: "err", err: err, payload: req.body.payload }));
         });        
     }
     else if(req.body.action === "get"){
