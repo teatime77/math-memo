@@ -54,11 +54,11 @@ app.post('/users', (req:any, res:any) => {
                 } 
                 else {
 
-                    res.status(200).send(JSON.stringify({ doc: doc_inf.data() }));
+                    res.status(200).send(JSON.stringify({ status: "ok", doc: doc_inf.data() }));
                 }
             })
             .catch((err:any) => {
-                res.status(200).send(JSON.stringify({ err: err, payload: req.body.payload }));
+                res.status(200).send(JSON.stringify({ status: "err", err: err, payload: req.body.payload }));
             });
     }
     else if(req.body.action === "put"){
@@ -69,9 +69,12 @@ app.post('/users', (req:any, res:any) => {
             id  : doc.id,
             name: doc.name,
             blocks_str: doc.blocks_str
+        }).then((writeResult:any) => {
+
+            // https://cloud.google.com/nodejs/docs/reference/firestore/1.2.x/WriteResult
+            res.status(200).send(JSON.stringify({ action:"put", status: "ok", doc: doc}));
         });
 
-        res.status(200).send(JSON.stringify({ action:"put", status: "ok", doc: doc}));
     }
     else if(req.body.action === "test") {      
 

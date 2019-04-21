@@ -8,11 +8,12 @@ function graph_closure(){
             type: 'POST',        
             data: { action: action, payload: payload }
         })
-        .done( (data) => {
+        .done( (data_str) => {
             // Ajaxリクエストが成功した時
 
+            var data = JSON.parse(data_str);
             if(fnc != undefined){
-                fnc(data);
+                fnc(payload, data);
             }
         })
         .fail( (data) => {
@@ -440,13 +441,13 @@ function graph_closure(){
                 }
                 var doc = { id:doc_cnt, name:("#doc-" + doc_cnt), blocks_str: JSON.stringify(blocks) };
                 doc_cnt++;
-                db_opr(users_path, "put", doc, function(data){
-                    db_opr(users_path, "get", {id:doc.id}, function(data){
-                        var dt = JSON.parse(data);
-                        var doc2 = dt.doc;
-                        doc2.blocks = JSON.parse(doc2.blocks_str);
-                        delete doc2.blocks_str;
-                        console.log("get", doc2);
+                db_opr(users_path, "put", doc, function(doc, data){
+                    var payload = {id:doc.id}
+                    db_opr(users_path, "get", payload, function(payload, data){
+                        var doc3 = data.doc;
+                        doc3.blocks = JSON.parse(doc3.blocks_str);
+                        delete doc3.blocks_str;
+                        console.log("get", doc3);
                     });
                 });
 
