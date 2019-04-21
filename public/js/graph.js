@@ -571,58 +571,62 @@ function graph_closure(){
             return html_lines;
         }
 
-        *show_doc(docs){
-            for(let doc of docs){
-                while(theGraph.pending){
+        show_doc(doc){
+
+            var svg1 = document.createElementNS("http://www.w3.org/2000/svg","svg");
+            svg1.style.backgroundColor = "wheat";
+            document.body.appendChild(svg1);
+
+            var id_blocks = new OrderedMap();
+
+            for(let blc of doc.blocks){
+                var block = new TextBlock();
+
+                block.id = blc.id;
+                block.from = blc.from;
+                block.lines = blc.lines;
+
+                id_blocks.set(block.id, block);
+
+                var html_lines = this.make_html_lines(block.lines);
+                block.make(html_lines);
+            }
+
+            MathJax.Hub.Queue(["Typeset",MathJax.Hub]);
+            MathJax.Hub.Queue([ontypeset, id_blocks, svg1]);
+
+            document.body.appendChild(document.createElement("hr"));
+        }
+
+        *get_doc(){
+            for(var id = 0; id < 30; id++){
+
+                var payload = {id:id}
+                var rcv_doc = null;
+                console.log("start get");
+                db_opr(users_path, "get", payload, function(payload, data){
+                    rcv_doc = data.doc;
+                    restore_doc(rcv_doc);
+                    console.log("get", rcv_doc);
+                });
+                while(rcv_doc == null || theGraph.pending){
                     yield;
                 }
-
+    
                 theGraph.pending = true;
-
-                var svg1 = document.createElementNS("http://www.w3.org/2000/svg","svg");
-                svg1.style.backgroundColor = "wheat";
-                document.body.appendChild(svg1);
-
-                var id_blocks = new OrderedMap();
-
-                for(let blc of doc.blocks){
-                    var block = new TextBlock();
-
-                    block.id = blc.id;
-                    block.from = blc.from;
-                    block.lines = blc.lines;
-
-                    id_blocks.set(block.id, block);
-
-
-                    var html_lines = this.make_html_lines(block.lines);
-                    block.make(html_lines);
-                }
-
-                MathJax.Hub.Queue(["Typeset",MathJax.Hub]);
-                MathJax.Hub.Queue([ontypeset, id_blocks, svg1]);
-
-                document.body.appendChild(document.createElement("hr"));
+    
+                this.show_doc(rcv_doc);
             }
         }
 
         read_docs(){
-            db_opr(users_path, "get-all-docs", {}, (doc, data) => {
-
-                data.docs.map(x => restore_doc(x));
-                data.docs.sort((x,y) => x.id - y.id);
-                for(let doc of data.docs){
-                    console.log(doc)
+            var gen_get_doc = this.get_doc();
+            var timer_id = setInterval(function(){
+                var ret = gen_get_doc.next();
+                if(ret.done){
+                    clearInterval(timer_id);
                 }
-
-                var gen_show_doc = this.show_doc(data.docs);
-                var timer_id = setInterval(function(){
-                    var ret = gen_show_doc.next();
-                    if(ret.done){
-                        clearInterval(timer_id);
-                    }
-                },10);                
-            });
+            },10);                
         }
     }
 
