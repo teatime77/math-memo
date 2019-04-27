@@ -1,9 +1,51 @@
-function graph_closure(block_text){
+function graph_closure(block_text_arg, msg_text_arg){
     var parser;
     var users_path = "https://asia-northeast1-hip-rig-238101.cloudfunctions.net/api/users";
-    var block_text = block_text;
+    var block_text = block_text_arg;
+    var msg_text = msg_text_arg;
     var clicked = false; 
+    var from_block = null;
+    var dom_list = [];
+    var timeout_id = undefined;
 
+    function msg(txt){
+        msg_text.innerHTML = txt;
+
+        if(timeout_id != undefined){
+            clearTimeout(timeout_id);
+        }
+        timer_id = setTimeout(function(txt1){
+            return function(){
+                msg_text.innerHTML = "";
+                timeout_id = undefined;
+            }
+        }(txt), 3000);
+    }
+
+    function clear_dom(){
+        for(let dom of dom_list){
+            dom.parentNode.removeChild(dom);
+        }
+        dom_list = [];
+    }
+
+    function onkeypress_block_text(){
+        if(window.event.code == "Enter" && window.event.ctrlKey == true){
+    
+            clear_dom();
+
+            var text_area = document.getElementById("block-text");
+            var lines = text_area.value.split("\n");
+            text_area.value = "";
+    
+            var block = logic_graph.makeTextBlock("" + block_cnt, [], lines)
+            block_cnt++;
+    
+            cur_doc.blocks.push(block);
+            logic_graph.show_doc(cur_doc);
+        }
+    }
+    
     function db_opr(fnc_url, action, payload, fnc){
         $.ajax({
             url : fnc_url,
@@ -26,6 +68,11 @@ function graph_closure(block_text){
         // Ajaxリクエストが成功・失敗どちらでも発動
         .always( (data) => {
         });
+    }
+
+    
+    function body_onclick(){
+        console.log("body clicked " + (click_cnt++));
     }
 
     function restore_doc(doc){
@@ -101,24 +148,75 @@ function graph_closure(block_text){
         parent.appendChild(rc);
     }
     
-    function add_edge(parent, ed){
+    function add_edge(parent, block1, block2, ed){
         var path = document.createElementNS("http://www.w3.org/2000/svg","path");
     
         var d; 
     
-        for(let [i, pnt] of ed.points.entries()){
-            if(i == 0){
-    
-                d = `M ${pnt.x},${pnt.y}`;
-            }
-            else{
-    
-                d += ` L${pnt.x},${pnt.y}`;
+        if(ed.points.length == 2){
+
+            for(let [i, pnt] of ed.points.entries()){
+                if(i == 0){
+        
+                    d = `M ${pnt.x},${pnt.y}`;
+                }
+                else{
+        
+                    d += ` L${pnt.x},${pnt.y}`;
+                }
             }
         }
-        path.setAttribute("fill", "none");
+        else{
+
+            for(let [i, pnt] of ed.points.entries()){
+                if(i == 0){
+        
+                    d = `M ${pnt.x},${pnt.y} Q`;
+                }
+                else{
+        
+                    d += ` ${pnt.x},${pnt.y}`;
+                }
+            }
+        }
+        path.setAttribute("fill", "transparent");
         path.setAttribute("stroke", "red");
+        path.setAttribute("stroke-width", "3px");
         path.setAttribute("d", d);
+
+        path.addEventListener("click", (function(temp) {
+
+            return function(){
+                if (clicked) {
+                    clicked = false;
+
+                    console.log("double click!! " + (click_cnt++) + " " + temp);
+                    var blc1 = temp[0];
+                    var blc2 = temp[1];
+
+                    var k = blc2.from.indexOf(blc1.id);
+                    console.assert(k != -1);
+                    blc2.from.splice(k, 1);
+
+                    // block_text.value = temp.lines.join("\n");
+            
+                    clear_dom();
+                    logic_graph.show_doc(cur_doc);
+
+                    return;
+                }
+            
+                clicked = true;
+                setTimeout(function () {
+                    if (clicked) {
+                        console.log("single click! " + (click_cnt++));
+                    }
+            
+                    clicked = false;
+                }, 300);
+           }
+        }([block1, block2])));
+
         parent.appendChild(path);
     }    
 
@@ -204,22 +302,35 @@ function graph_closure(block_text){
             ele.addEventListener("click", (function(temp) {
 
                 return function(){
-                    if (clicked) {
-                        console.log("double click!!");
-                        block_text.value = temp.lines.join("\n");
-                
-                        clicked = false;
-                        return;
-                    }
-                
-                    clicked = true;
-                    setTimeout(function () {
-                        if (clicked) {
-                            console.log("single click!");
+                    if(window.event.ctrlKey){
+
+                        if(from_block == null){
+
+                            msg("接続先のブロックをクリックしてください。");
+                            from_block = temp;
                         }
-                
-                        clicked = false;
-                    }, 300);
+                        else{
+
+                            if(temp.from.includes(from_block.id)){
+
+                                msg("接続済みです。");
+                            }
+                            else{
+
+                                msg("ブロックを接続しました。" + from_block.id + "->" + temp.id);
+                                temp.from.push(from_block.id);
+                            }
+                            from_block = null;
+
+                            clear_dom();
+                            logic_graph.show_doc(cur_doc);
+                        }
+                    }
+                    else{
+
+                        console.log("click block " + (click_cnt++));
+                        block_text.value = temp.lines.join("\n");
+                    }
                }
             }(block)));
             
@@ -229,9 +340,12 @@ function graph_closure(block_text){
         });
     
     
-        g.edges().forEach(function(e) {
-            var ed = g.edge(e);
-            add_edge(svg1, ed);
+        g.edges().forEach(function(edge_id) {
+            var blc1 = id_blocks.get(edge_id["v"]);
+            var blc2 = id_blocks.get(edge_id["w"]);
+
+            var ed = g.edge(edge_id);
+            add_edge(svg1, blc1, blc2, ed);
         });         
 
         theGraph.pending = false;
@@ -321,7 +435,12 @@ function graph_closure(block_text){
             this.ele.innerHTML = html_lines.join("\n");
             this.ele.id = this.id;
             document.body.appendChild(this.ele);
-            document.body.appendChild(document.createElement("br"));
+            
+            var br = document.createElement("br");
+            document.body.appendChild(br);
+
+            dom_list.push(this.ele);
+            dom_list.push(br);
         }
     }
 
@@ -329,11 +448,13 @@ function graph_closure(block_text){
     class LogicGraph{
 
         constructor(){
+            document.body.addEventListener("click", body_onclick);
+
             db_opr(users_path, "test", { id : 'よろしく', lines : 'こんにちは' });
 
             theGraph = this;
             this.pending = false;
-        }
+        }        
 
         makeTextBlock(id, from, lines){
             return new TextBlock(id, from, lines);
@@ -357,7 +478,11 @@ function graph_closure(block_text){
             MathJax.Hub.Queue(["Typeset",MathJax.Hub]);
             MathJax.Hub.Queue([ontypeset, id_blocks, svg1]);
 
-            document.body.appendChild(document.createElement("hr"));
+            var hr = document.createElement("hr");
+            document.body.appendChild(hr);
+
+            dom_list.push(svg1);
+            dom_list.push(hr);
         }
 
         *get_doc(){
@@ -391,6 +516,9 @@ function graph_closure(block_text){
             },10);                
         }
     }
+
+
+    block_text.addEventListener("keypress", onkeypress_block_text);
 
     return new LogicGraph();
 }

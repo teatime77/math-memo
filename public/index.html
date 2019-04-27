@@ -22,47 +22,30 @@
 
 <script src="js/dagre.min.js"></script>
 <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.10.1/jquery.min.js"></script>
-<script type="text/javascript" src="js/graph.js?v=53"></script>
+<script type="text/javascript" src="js/graph.js?v=70"></script>
 <script type="text/javascript" >
 var logic_graph;
 var cur_doc = { blocks: [] };
 var block_cnt = 0;
+var click_cnt = 0;
 
 
 function body_onload(){
-    var block_text = document.getElementById("block_text");
-    logic_graph = graph_closure(block_text);
+    var block_text = document.getElementById("block-text");
+    var msg_text = document.getElementById("msg-text");
+    logic_graph = graph_closure(block_text, msg_text);
 }
 
-function on_add_block(){
-    var text_area = document.getElementById("block_text");
-    var lines = text_area.value.split("\n");
-    text_area.value = "";
-
-    var block = logic_graph.makeTextBlock("" + block_cnt, [], lines)
-    block_cnt++;
-
-    cur_doc.blocks.push(block);
-    logic_graph.show_doc(cur_doc);
-}
-
-function onkeypress_block_text(){
-    if(window.event.code == "Enter" && window.event.ctrlKey == true){
-        on_add_block();
-    }
-}
-
-function on_save_doc(){
-
-}
 </script>
 
 <style type="text/css">
 .m {
     position: absolute;
 }
+path {
+    cursor: pointer;
+}
 </style>
-
 <!-- 
     border-style:none;
 
@@ -77,14 +60,15 @@ $$
   \newcommand{\closedsets}[1]{ \mathscr{#1} } 
   \newcommand{\define}{ \overset{def}{\iff} }
   \newcommand{\defeq}{ \overset{def}{=} }
-  $$
+$$
+<span id="msg-text" style="font-size:larger; color:red">&nbsp;</span><br/>
 
-  <input type="text" style="width:50em" />
-  <input type="button" value="保存" onclick="on_save_doc()" />
-  <input type="button" value="一覧" onclick="logic_graph.read_docs()" />
-  <br/>
-  <textarea id="block_text" rows="20" style="width:50em" onkeypress="onkeypress_block_text()" ></textarea>
-
+<input type="text" style="width:50em" />
+<!-- <input type="button" value="保存" onclick="on_save_doc()" /> -->
+<input type="button" value="一覧" onclick="logic_graph.read_docs()" />
+<br/>
+<textarea id="block-text" rows="20" style="width:50em" ></textarea><br/>
+<br/>
 
 </body>
 </html>
