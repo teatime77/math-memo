@@ -1,6 +1,8 @@
-function graph_closure(){
+function graph_closure(block_text){
     var parser;
     var users_path = "https://asia-northeast1-hip-rig-238101.cloudfunctions.net/api/users";
+    var block_text = block_text;
+    var clicked = false; 
 
     function db_opr(fnc_url, action, payload, fnc){
         $.ajax({
@@ -28,8 +30,11 @@ function graph_closure(){
 
     function restore_doc(doc){
         doc.id = parseInt(doc.id, 10);
-        doc.blocks = JSON.parse(doc.blocks_str);
+
+        var block_objs = JSON.parse(doc.blocks_str);
         delete doc.blocks_str;
+
+        doc.blocks = block_objs.map(blc => new TextBlock(blc.id, blc.from, blc.lines));
     }
     
     function get_indent(line){
@@ -91,7 +96,7 @@ function graph_closure(){
         rc.setAttribute("y", nd.y - nd.height/2);
         rc.setAttribute("width", nd.width);
         rc.setAttribute("height", nd.height);
-        rc.setAttribute("fill", "none");
+        rc.setAttribute("fill", "cornsilk");
         rc.setAttribute("stroke", "green");
         parent.appendChild(rc);
     }
@@ -188,12 +193,38 @@ function graph_closure(){
         g.nodes().forEach(function(id) {
             var nd = g.node(id);
     
-            var ele = id_blocks.get(id).ele;
+            var block = id_blocks.get(id);
+            var ele = block.ele;
         
             ele.style.position = "absolute";
             ele.style.left = `${window.scrollX + rc1.x + nd.x - nd.width /2 + padding}px`
             ele.style.top  = `${window.scrollY + rc1.y + nd.y - nd.height/2 + padding}px`
-    
+
+            ele.setAttribute("data-block", block)
+            ele.addEventListener("click", (function(temp) {
+
+                return function(){
+                    if (clicked) {
+                        console.log("double click!!");
+                        block_text.value = temp.lines.join("\n");
+                
+                        clicked = false;
+                        return;
+                    }
+                
+                    clicked = true;
+                    setTimeout(function () {
+                        if (clicked) {
+                            console.log("single click!");
+                        }
+                
+                        clicked = false;
+                    }, 300);
+               }
+            }(block)));
+            
+            console.log(ele.id + ":" + ele.getAttribute("data-block"));
+                
             add_node_rect(svg1, nd);
         });
     
@@ -207,41 +238,21 @@ function graph_closure(){
     }
     
     class TextBlock {
-        constructor(){
-            this.lines = [];
-            this.from = [];
+        constructor(id, from, lines){
+            this.id = id;
+            this.from = from;
+            this.lines = lines;
         }
 
-        /*
-            HTML要素を作る。
-        */
-        make(html_lines){
-            this.ele = document.createElement("div");
-            this.ele.innerHTML = html_lines.join("\n");
-            this.ele.id = this.id;
-            document.body.appendChild(this.ele);
-            document.body.appendChild(document.createElement("br"));
-        }
-    }
 
-    var theGraph;
-    class LogicGraph{
-
-        constructor(){
-            db_opr(users_path, "test", { id : 'よろしく', lines : 'こんにちは' });
-
-            theGraph = this;
-            this.pending = false;
-        }
-
-        make_html_lines(lines){
+        make_html_lines(){
             var html_lines = [];            
 
             var in_math = false;
             var ul_indent = -1;
             var prev_line = "";
             var indent, line;
-            for(let current_line of lines){
+            for(let current_line of this.lines){
                 var current_line_trim = current_line.trim();
 
                 [indent, line] = get_indent(current_line);
@@ -300,6 +311,34 @@ function graph_closure(){
             return html_lines;
         }
 
+        /*
+            HTML要素を作る。
+        */
+        make(){
+            var html_lines = this.make_html_lines();
+
+            this.ele = document.createElement("div");
+            this.ele.innerHTML = html_lines.join("\n");
+            this.ele.id = this.id;
+            document.body.appendChild(this.ele);
+            document.body.appendChild(document.createElement("br"));
+        }
+    }
+
+    var theGraph;
+    class LogicGraph{
+
+        constructor(){
+            db_opr(users_path, "test", { id : 'よろしく', lines : 'こんにちは' });
+
+            theGraph = this;
+            this.pending = false;
+        }
+
+        makeTextBlock(id, from, lines){
+            return new TextBlock(id, from, lines);
+        }
+
         show_doc(doc){
 
             var svg1 = document.createElementNS("http://www.w3.org/2000/svg","svg");
@@ -308,17 +347,11 @@ function graph_closure(){
 
             var id_blocks = new OrderedMap();
 
-            for(let blc of doc.blocks){
-                var block = new TextBlock();
-
-                block.id = blc.id;
-                block.from = blc.from;
-                block.lines = blc.lines;
+            for(let block of doc.blocks){
 
                 id_blocks.set(block.id, block);
 
-                var html_lines = this.make_html_lines(block.lines);
-                block.make(html_lines);
+                block.make();
             }
 
             MathJax.Hub.Queue(["Typeset",MathJax.Hub]);
@@ -360,9 +393,4 @@ function graph_closure(){
     }
 
     return new LogicGraph();
-}
-
-function body_onload(){
-    var logic_graph = graph_closure();
-    logic_graph.read_docs();
 }
