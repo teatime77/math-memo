@@ -1,10 +1,44 @@
-function graph_closure(block_text_arg, msg_text_arg){
-    var block_text = block_text_arg;
-    var msg_text = msg_text_arg;
+function graph_closure(){
+    var block_text = document.getElementById("block-text");;
+    var msg_text = document.getElementById("msg-text");
+    var doc_title_text = document.getElementById("doc-title");
+    var docs_select = document.getElementById("docs-select");
+
+    var block_cnt = 0;
+    var click_cnt = 0;   
+
+    var cur_doc = { blocks: [] };
+    var cur_block = null;
     var clicked = false; 
     var from_block = null;
     var dom_list = [];
     var timeout_id = undefined;
+
+    doc_title_text.addEventListener("blur", function(){
+        cur_doc.title = doc_title_text.value.trim();
+    });
+
+    document.body.addEventListener("click", function(){
+        console.log("body clicked " + (click_cnt++));
+    });
+
+    block_text.addEventListener("keypress", function(){
+        if(window.event.code == "Enter" && window.event.ctrlKey == true){
+    
+            clear_dom();
+
+            var text_area = document.getElementById("block-text");
+            var lines = text_area.value.split("\n");
+            text_area.value = "";
+    
+            var block = new TextBlock(cur_doc, "" + block_cnt, [], lines)
+            block_cnt++;
+    
+            cur_doc.blocks.push(block);
+            logic_graph.show_doc(cur_doc);
+        }
+    });
+
 
     function msg(txt){
         if(timeout_id != undefined){
@@ -28,34 +62,13 @@ function graph_closure(block_text_arg, msg_text_arg){
         dom_list = [];
     }
 
-    function onkeypress_block_text(){
-        if(window.event.code == "Enter" && window.event.ctrlKey == true){
-    
-            clear_dom();
-
-            var text_area = document.getElementById("block-text");
-            var lines = text_area.value.split("\n");
-            text_area.value = "";
-    
-            var block = new TextBlock("" + block_cnt, [], lines)
-            block_cnt++;
-    
-            cur_doc.blocks.push(block);
-            logic_graph.show_doc(cur_doc);
-        }
-    }
-    
-    function body_onclick(){
-        console.log("body clicked " + (click_cnt++));
-    }
-
     function restore_doc(doc){
         doc.id = parseInt(doc.id, 10);
 
         var block_objs = JSON.parse(doc.blocks_str);
         delete doc.blocks_str;
 
-        doc.blocks = block_objs.map(blc => new TextBlock(blc.id, blc.from, blc.lines));
+        doc.blocks = block_objs.map(blc => new TextBlock(doc, blc.id, blc.from, blc.lines));
     }
 
     function stringify_doc(doc){
@@ -63,7 +76,14 @@ function graph_closure(block_text_arg, msg_text_arg){
         
         var blocks_str = JSON.stringify(block_objs);
 
-        return { "id": doc.id, "blocks_str": blocks_str };
+        if(doc.title == undefined){
+
+            return { "id": doc.id, "blocks_str": blocks_str };
+        }
+        else{
+
+            return { "id": doc.id, "title": doc.title, "blocks_str": blocks_str };
+        }
     }
     
     function get_indent(line){
@@ -168,7 +188,7 @@ function graph_closure(block_text_arg, msg_text_arg){
 
         path.addEventListener("click", (function(temp) {
 
-            return function(){
+            return function(){                
                 if (clicked) {
                     clicked = false;
 
@@ -284,6 +304,8 @@ function graph_closure(block_text_arg, msg_text_arg){
             ele.addEventListener("click", (function(temp) {
 
                 return function(){
+                    window.event.stopPropagation();
+
                     if(window.event.ctrlKey){
 
                         if(from_block == null){
@@ -311,7 +333,17 @@ function graph_closure(block_text_arg, msg_text_arg){
                     else{
 
                         console.log("click block " + (click_cnt++));
+                        cur_block = temp;
                         block_text.value = temp.lines.join("\n");
+
+                        cur_doc = temp.parent;
+                        if(cur_doc.title == undefined){
+                            doc_title_text.value = "";
+                        }
+                        else{
+
+                            doc_title_text.value = cur_doc.title;
+                        }
                     }
                }
             }(block)));
@@ -334,7 +366,8 @@ function graph_closure(block_text_arg, msg_text_arg){
     }
     
     class TextBlock {
-        constructor(id, from, lines){
+        constructor(parent, id, from, lines){
+            this.parent = parent;
             this.id = id;
             this.from = from;
             this.lines = lines;
@@ -430,8 +463,6 @@ function graph_closure(block_text_arg, msg_text_arg){
     class LogicGraph{
 
         constructor(){
-            document.body.addEventListener("click", body_onclick);
-
             theGraph = this;
             this.pending = false;
             this.docs = [];
@@ -477,19 +508,36 @@ function graph_closure(block_text_arg, msg_text_arg){
         }
 
         read_docs(){
+            while (docs_select.options.length > 0) {                
+                docs_select.remove(0);
+            }
+
             this.docs = [];
-            db.collection('users').doc(this.user.uid).collection('docs')
+            db.collection('users-3').doc(this.user.uid).collection('docs')
             .get().then((querySnapshot) => {
                 querySnapshot.forEach((doc) => {
                     var rcv_doc = doc.data();
-                    console.log(`${doc.id} => ${rcv_doc}`);
-        
+                    console.log(`${doc.id} => ${rcv_doc}`);                
+
                     restore_doc(rcv_doc);
 
                     this.docs.push(rcv_doc);                    
                 });
 
                 this.docs.sort((a,b) => a.id - b.id );
+                for(let doc of this.docs){
+                    var opt = document.createElement("option");
+                    opt.setAttribute("data-doc", doc);
+                    if(doc.title == undefined){
+
+                        opt.text = "???";
+                    }
+                    else{
+
+                        opt.text = doc.title;
+                    }
+                    docs_select.appendChild(opt);
+                }
                 console.log("rcv doc 終わり", this.docs);
 
                 var gen_show_all_doc = this.show_all_doc();
@@ -510,7 +558,7 @@ function graph_closure(block_text_arg, msg_text_arg){
             }
 
             for(let doc of this.docs){
-                var doc_ref = db.collection('users').doc(this.user.uid).collection('docs').doc("" + doc.id);
+                var doc_ref = db.collection('users-4').doc(this.user.uid).collection('docs').doc("" + doc.id);
 
                 var doc_str = stringify_doc(doc);
                 doc_ref.set(doc_str)
@@ -525,10 +573,38 @@ function graph_closure(block_text_arg, msg_text_arg){
         }
     }
 
-
-    block_text.addEventListener("keypress", onkeypress_block_text);
-
     var db = firebase.firestore();
+
+    firebase.auth().onAuthStateChanged(function(user) {
+        if (user) {
+            // User is signed in.
+            console.log(`ログイン ${user.uid}`);
+
+            logic_graph.user = user;
+
+            var user1 = firebase.auth().currentUser;
+
+            if (user1) {
+                // User is signed in.
+                console.log(user1);
+            } 
+            else {
+                // No user is signed in.
+                console.log("ログアウト");
+            }
+
+        } else {
+            // User is signed out.
+            // ...
+            console.log("ログアウト");
+        }
+    });
     
     return new LogicGraph();
+}
+
+var logic_graph;
+
+function body_onload(){
+    logic_graph = graph_closure();
 }

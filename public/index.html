@@ -41,55 +41,7 @@ firebase.initializeApp(config);
 
 <script src="js/dagre.min.js"></script>
 <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.10.1/jquery.min.js"></script>
-<script type="text/javascript" src="js/graph.js?v=90"></script>
-<script type="text/javascript" >
-var logic_graph;
-var cur_doc = { blocks: [] };
-var block_cnt = 0;
-var click_cnt = 0;
-
-
-function body_onload(){
-    var block_text = document.getElementById("block-text");
-    var msg_text = document.getElementById("msg-text");
-    logic_graph = graph_closure(block_text, msg_text);
-
-    firebase.auth().onAuthStateChanged(function(user) {
-        if (user) {
-            // User is signed in.
-            var displayName = user.displayName;
-            var email = user.email;
-            var emailVerified = user.emailVerified;
-            var photoURL = user.photoURL;
-            var isAnonymous = user.isAnonymous;
-            var uid = user.uid;
-            var providerData = user.providerData;
-            // ...
-            console.log(`ログイン ${user.uid}`);
-
-            logic_graph.user = user;
-
-
-            var user1 = firebase.auth().currentUser;
-
-            if (user1) {
-                // User is signed in.
-                console.log(user1);
-            } 
-            else {
-                // No user is signed in.
-                console.log("ログアウト");
-            }
-
-        } else {
-            // User is signed out.
-            // ...
-            console.log("ログアウト");
-        }
-    });
-}
-
-</script>
+<script type="text/javascript" src="js/graph.js?v=100"></script>
 
 <style type="text/css">
 .m {
@@ -114,15 +66,24 @@ $$
   \newcommand{\define}{ \overset{def}{\iff} }
   \newcommand{\defeq}{ \overset{def}{=} }
 $$
-<a href="login.html" >ログイン</a><br/>
-<span id="msg-text" style="font-size:larger; color:red">&nbsp;</span><br/>
-
-<input type="text" style="width:50em" />
-<input type="button" value="一覧" onclick="logic_graph.read_docs()" />
-<input type="button" value="保存" onclick="logic_graph.save_docs()" />
-<br/>
-<textarea id="block-text" rows="20" style="width:50em" ></textarea><br/>
-<br/>
+<table style="position: sticky; top: 0; z-index: 100;">
+    <tr>
+        <td>
+            <a href="login.html" >ログイン</a><br/>
+            <span id="msg-text" style="font-size:larger; color:red">&nbsp;</span><br/>
+        
+            <input type="text" id="doc-title" style="width:40em" />
+            <input type="button" value="一覧" onclick="logic_graph.read_docs()" />
+            <input type="button" value="保存" onclick="logic_graph.save_docs()" />
+            <br/>
+            <textarea id="block-text" rows="10" style="width:40em" ></textarea><br/>        
+        </td>
+        <td>
+            <select id="docs-select" size="10" style="width:15em">
+            </select>
+        </td>
+    </tr>
+</table>
 
 </body>
 </html>
