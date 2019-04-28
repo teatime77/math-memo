@@ -1,6 +1,4 @@
 function graph_closure(block_text_arg, msg_text_arg){
-    var parser;
-    var users_path = "https://asia-northeast1-hip-rig-238101.cloudfunctions.net/api/users";
     var block_text = block_text_arg;
     var msg_text = msg_text_arg;
     var clicked = false; 
@@ -39,38 +37,13 @@ function graph_closure(block_text_arg, msg_text_arg){
             var lines = text_area.value.split("\n");
             text_area.value = "";
     
-            var block = logic_graph.makeTextBlock("" + block_cnt, [], lines)
+            var block = new TextBlock("" + block_cnt, [], lines)
             block_cnt++;
     
             cur_doc.blocks.push(block);
             logic_graph.show_doc(cur_doc);
         }
     }
-    
-    function db_opr(fnc_url, action, payload, fnc){
-        $.ajax({
-            url : fnc_url,
-            type: 'POST',        
-            data: { action: action, payload: payload }
-        })
-        .done( (data_str) => {
-            // Ajaxリクエストが成功した時
-
-            var data = JSON.parse(data_str);
-            if(fnc != undefined){
-                fnc(payload, data);
-            }
-        })
-        .fail( (data) => {
-            // Ajaxリクエストが失敗した時
-
-            console.log("err:" + data);
-        })
-        // Ajaxリクエストが成功・失敗どちらでも発動
-        .always( (data) => {
-        });
-    }
-
     
     function body_onclick(){
         console.log("body clicked " + (click_cnt++));
@@ -459,16 +432,10 @@ function graph_closure(block_text_arg, msg_text_arg){
         constructor(){
             document.body.addEventListener("click", body_onclick);
 
-            db_opr(users_path, "test", { id : 'よろしく', lines : 'こんにちは' });
-
             theGraph = this;
             this.pending = false;
             this.docs = [];
             this.user = null;
-        }        
-
-        makeTextBlock(id, from, lines){
-            return new TextBlock(id, from, lines);
         }
 
         show_doc(doc){
@@ -496,37 +463,6 @@ function graph_closure(block_text_arg, msg_text_arg){
             dom_list.push(hr);
         }
 
-        *get_doc(){
-            for(var id = 0; id < 30; id++){
-
-                var payload = {id:id}
-                var rcv_doc = null;
-                console.log("start get");
-                db_opr(users_path, "get", payload, function(payload, data){
-                    rcv_doc = data.doc;
-                    restore_doc(rcv_doc);
-                    console.log("get", rcv_doc);
-                });
-                while(rcv_doc == null || theGraph.pending){
-                    yield;
-                }
-    
-                theGraph.pending = true;
-    
-                this.show_doc(rcv_doc);
-            }
-        }
-
-        read_docs_fnc(){
-            var gen_get_doc = this.get_doc();
-            var timer_id = setInterval(function(){
-                var ret = gen_get_doc.next();
-                if(ret.done){
-                    clearInterval(timer_id);
-                }
-            },10);                
-        }
-
         * show_all_doc(){
             for(let rcv_doc of this.docs){
 
@@ -542,7 +478,6 @@ function graph_closure(block_text_arg, msg_text_arg){
 
         read_docs(){
             this.docs = [];
-            // db.collection("docs")
             db.collection('users').doc(this.user.uid).collection('docs')
             .get().then((querySnapshot) => {
                 querySnapshot.forEach((doc) => {
@@ -550,14 +485,6 @@ function graph_closure(block_text_arg, msg_text_arg){
                     console.log(`${doc.id} => ${rcv_doc}`);
         
                     restore_doc(rcv_doc);
-
-                    // for(let blc of rcv_doc.blocks){
-                    //     for(let [i, line] of blc.lines.entries()){
-                    //         if(line.startsWith("    ")){
-                    //             blc.lines[i] = line.substring(4);
-                    //         }
-                    //     }
-                    // }
 
                     this.docs.push(rcv_doc);                    
                 });
