@@ -39,6 +39,20 @@ function graph_closure(){
         }
     });
 
+    docs_select.addEventListener("change", function(){
+
+        var idx = docs_select.selectedIndex;
+        if(idx == -1){
+            return;
+        }
+        
+        clear_dom();
+
+        cur_doc = logic_graph.docs[idx];
+
+        logic_graph.show_doc(cur_doc);
+    });
+
 
     function msg(txt){
         if(timeout_id != undefined){
@@ -473,6 +487,9 @@ function graph_closure(){
 
             var svg1 = document.createElementNS("http://www.w3.org/2000/svg","svg");
             svg1.style.backgroundColor = "wheat";
+            svg1.addEventListener("click", function(){
+                console.log("SVG clicked " + (click_cnt++));
+            })
             document.body.appendChild(svg1);
 
             var id_blocks = new OrderedMap();
@@ -527,7 +544,6 @@ function graph_closure(){
                 this.docs.sort((a,b) => a.id - b.id );
                 for(let doc of this.docs){
                     var opt = document.createElement("option");
-                    opt.setAttribute("data-doc", doc);
                     if(doc.title == undefined){
 
                         opt.text = "???";
@@ -540,14 +556,14 @@ function graph_closure(){
                 }
                 console.log("rcv doc 終わり", this.docs);
 
-                var gen_show_all_doc = this.show_all_doc();
-                var timer_id = setInterval(function(){
-                    var ret = gen_show_all_doc.next();   
+                // var gen_show_all_doc = this.show_all_doc();
+                // var timer_id = setInterval(function(){
+                //     var ret = gen_show_all_doc.next();   
     
-                    if(ret.done){
-                        clearInterval(timer_id);
-                    }
-                },10);
+                //     if(ret.done){
+                //         clearInterval(timer_id);
+                //     }
+                // },10);
             });            
         }
 
