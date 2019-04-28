@@ -4,7 +4,23 @@
 
 <head>
 <meta charset="utf-8" />
-<title>Lebesgue積分</title>
+<title>数学ノート</title>
+
+<script src="https://www.gstatic.com/firebasejs/5.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/5.10.1/firebase-auth.js"></script>
+<script>
+  // Initialize Firebase
+  var config = {
+    apiKey: "AIzaSyA793YhUFWCJTI7s37BrLQN5HR5qDQGv_c",
+    authDomain: "hip-rig-238101.firebaseapp.com",
+    databaseURL: "https://hip-rig-238101.firebaseio.com",
+    projectId: "hip-rig-238101",
+    storageBucket: "hip-rig-238101.appspot.com",
+    messagingSenderId: "802290277030"
+  };
+  firebase.initializeApp(config);
+</script>
+
 <script type="text/x-mathjax-config">
     MathJax.Hub.Config({
         extensions: ["tex2jax.js"],
@@ -31,6 +47,38 @@ var click_cnt = 0;
 
 
 function body_onload(){
+    firebase.auth().onAuthStateChanged(function(user) {
+        if (user) {
+            // User is signed in.
+            var displayName = user.displayName;
+            var email = user.email;
+            var emailVerified = user.emailVerified;
+            var photoURL = user.photoURL;
+            var isAnonymous = user.isAnonymous;
+            var uid = user.uid;
+            var providerData = user.providerData;
+            // ...
+            console.log("ログイン");
+
+
+            var user1 = firebase.auth().currentUser;
+
+            if (user1) {
+                // User is signed in.
+                console.log(user1);
+            } 
+            else {
+                // No user is signed in.
+                console.log("ログアウト");
+            }
+
+        } else {
+            // User is signed out.
+            // ...
+            console.log("ログアウト");
+        }
+    });
+
     var block_text = document.getElementById("block-text");
     var msg_text = document.getElementById("msg-text");
     logic_graph = graph_closure(block_text, msg_text);
@@ -61,6 +109,7 @@ $$
   \newcommand{\define}{ \overset{def}{\iff} }
   \newcommand{\defeq}{ \overset{def}{=} }
 $$
+<a href="login.html" >ログイン</a><br/>
 <span id="msg-text" style="font-size:larger; color:red">&nbsp;</span><br/>
 
 <input type="text" style="width:50em" />
