@@ -9,11 +9,12 @@ function graph_closure(block_text_arg, msg_text_arg){
     var timeout_id = undefined;
 
     function msg(txt){
-        msg_text.innerHTML = txt;
-
         if(timeout_id != undefined){
             clearTimeout(timeout_id);
         }
+
+        msg_text.innerHTML = txt;
+
         timer_id = setTimeout(function(txt1){
             return function(){
                 msg_text.innerHTML = "";
@@ -82,6 +83,14 @@ function graph_closure(block_text_arg, msg_text_arg){
         delete doc.blocks_str;
 
         doc.blocks = block_objs.map(blc => new TextBlock(blc.id, blc.from, blc.lines));
+    }
+
+    function stringify_doc(doc){
+        var block_objs = doc.blocks.map(blc => ({ "id": blc.id, "from": blc.from, "lines": blc.lines}));
+        
+        var blocks_str = JSON.stringify(block_objs);
+
+        return { "id": doc.id, "blocks_str": blocks_str };
     }
     
     function get_indent(line){
@@ -454,6 +463,8 @@ function graph_closure(block_text_arg, msg_text_arg){
 
             theGraph = this;
             this.pending = false;
+            this.docs = [];
+            this.user = null;
         }        
 
         makeTextBlock(id, from, lines){
@@ -506,7 +517,7 @@ function graph_closure(block_text_arg, msg_text_arg){
             }
         }
 
-        read_docs(){
+        read_docs_fnc(){
             var gen_get_doc = this.get_doc();
             var timer_id = setInterval(function(){
                 var ret = gen_get_doc.next();
@@ -515,10 +526,82 @@ function graph_closure(block_text_arg, msg_text_arg){
                 }
             },10);                
         }
+
+        * show_all_doc(){
+            for(let rcv_doc of this.docs){
+
+                while(theGraph.pending){
+                    yield;
+                }
+
+                theGraph.pending = true;
+
+                this.show_doc(rcv_doc);
+            }
+        }
+
+        read_docs(){
+            this.docs = [];
+            // db.collection("docs")
+            db.collection('users').doc(this.user.uid).collection('docs')
+            .get().then((querySnapshot) => {
+                querySnapshot.forEach((doc) => {
+                    var rcv_doc = doc.data();
+                    console.log(`${doc.id} => ${rcv_doc}`);
+        
+                    restore_doc(rcv_doc);
+
+                    // for(let blc of rcv_doc.blocks){
+                    //     for(let [i, line] of blc.lines.entries()){
+                    //         if(line.startsWith("    ")){
+                    //             blc.lines[i] = line.substring(4);
+                    //         }
+                    //     }
+                    // }
+
+                    this.docs.push(rcv_doc);                    
+                });
+
+                this.docs.sort((a,b) => a.id - b.id );
+                console.log("rcv doc 終わり", this.docs);
+
+                var gen_show_all_doc = this.show_all_doc();
+                var timer_id = setInterval(function(){
+                    var ret = gen_show_all_doc.next();   
+    
+                    if(ret.done){
+                        clearInterval(timer_id);
+                    }
+                },10);
+            });            
+        }
+
+        save_docs(){
+
+            if(this.user == null){
+                msg("ログインしていません。");
+            }
+
+            for(let doc of this.docs){
+                var doc_ref = db.collection('users').doc(this.user.uid).collection('docs').doc("" + doc.id);
+
+                var doc_str = stringify_doc(doc);
+                doc_ref.set(doc_str)
+                .then(function() {
+                    console.log("Document written");
+                })
+                .catch(function(error) {
+                    console.error("Error adding document: ", error);
+                });
+            }
+
+        }
     }
 
 
     block_text.addEventListener("keypress", onkeypress_block_text);
 
+    var db = firebase.firestore();
+    
     return new LogicGraph();
 }
