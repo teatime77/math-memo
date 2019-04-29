@@ -138,26 +138,26 @@ function graph_closure(){
         return " ".repeat(4 * indent);
     }
 
-    class OrderedMap {
+    class OrderedMap<K, V> {
         map: any;
-        keys: any[];
+        keys: K[];
         constructor(){
             this.map = new Map();
             this.keys = [];
         }
     
-        set(key, value){
+        set(key: K, value: V){
             if(! this.map.has(key)){
                 this.keys.push(key);
             }
             this.map.set(key, value);
         }
     
-        get(key){
+        get(key: K){
             return this.map.get(key);
         }
     
-        has(key){
+        has(key: K){
             return this.map.has(key);
         }
     
@@ -168,11 +168,7 @@ function graph_closure(){
     
     var padding = 10;
     
-    function last(v){
-        return v[v.length - 1];
-    }
-    
-    function add_node_rect(parent, nd){
+    function add_node_rect(svg1: SVGSVGElement, nd: any){
         var rc = document.createElementNS("http://www.w3.org/2000/svg","rect");
         rc.setAttribute("x", "" + (nd.x - nd.width/2));
         rc.setAttribute("y", "" + (nd.y - nd.height/2));
@@ -180,13 +176,13 @@ function graph_closure(){
         rc.setAttribute("height", nd.height);
         rc.setAttribute("fill", "cornsilk");
         rc.setAttribute("stroke", "green");
-        parent.appendChild(rc);
+        svg1.appendChild(rc);
     }
     
-    function add_edge(parent, block1, block2, ed){
+    function add_edge(svg1: SVGSVGElement, block1: TextBlock, block2: TextBlock, ed: any){
         var path = document.createElementNS("http://www.w3.org/2000/svg","path");
     
-        var d; 
+        var d: string = ""; 
     
         if(ed.points.length == 2){
 
@@ -252,10 +248,10 @@ function graph_closure(){
            }
         }([block1, block2])));
 
-        parent.appendChild(path);
+        svg1.appendChild(path);
     }    
 
-    function get_size(ele){
+    function get_size(ele: HTMLDivElement){
         var spans = ele.getElementsByTagName("span");
 
         var min_x = Number.MAX_VALUE, min_y = Number.MAX_VALUE;
@@ -285,7 +281,7 @@ function graph_closure(){
         return [max_x - min_x, max_y - min_y]
     }
     
-    function ontypeset(id_blocks, svg1){    
+    function ontypeset(id_blocks: OrderedMap<string, TextBlock>, svg1: SVGSVGElement){
         // Create a new directed graph 
         var g = new dagre.graphlib.Graph();
     
@@ -312,7 +308,7 @@ function graph_closure(){
         dagre.layout(g);
         
         var max_x = 0, max_y = 0;
-        g.nodes().forEach(function(id) {
+        g.nodes().forEach(function(id:string) {
             var nd = g.node(id);
             max_x = Math.max(max_x, nd.x + nd.width / 2);
             max_y = Math.max(max_y, nd.y + nd.height/ 2);
@@ -322,8 +318,8 @@ function graph_closure(){
         svg1.style.height = max_y + "px";
     
     
-        var rc1 = svg1.getBoundingClientRect();
-        g.nodes().forEach(function(id) {
+        var rc1 = svg1.getBoundingClientRect() as DOMRect;
+        g.nodes().forEach(function(id:string) {
             var nd = g.node(id);
     
             var block = id_blocks.get(id);
@@ -405,13 +401,14 @@ function graph_closure(){
         id: string;
         from: string[];
         lines: string[];
-        ele: any;
+        ele: HTMLDivElement | null;
         
         constructor(parent: Doc, id: string, from: string[], lines: string[]){
             this.parent = parent;
             this.id = id;
             this.from = from;
             this.lines = lines;
+            this.ele = null;
         }
 
 
