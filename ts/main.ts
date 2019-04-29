@@ -10,7 +10,7 @@ function graph_closure(){
         title : string;
         blocks : TextBlock[];
 
-        constructor(id, title, blocks){
+        constructor(id: number, title: string, blocks: TextBlock[]){
             this.id = id;
             this.title = title;
             this.blocks = blocks;
@@ -93,16 +93,16 @@ function graph_closure(){
         dom_list = [];
     }
 
-    function restore_doc(doc:any){
-        doc.id = parseInt(doc.id, 10);
+    function restore_doc(doc_obj:any) : Doc {
+        var doc = new Doc(parseInt(doc_obj.id, 10), doc_obj.title, []);
 
-        var block_objs = JSON.parse(doc.blocks_str);
-        delete doc.blocks_str;
-
+        var block_objs = JSON.parse(doc_obj.blocks_str);
         doc.blocks = block_objs.map((blc:any) => new TextBlock(doc, blc.id, blc.from, blc.lines));
+
+        return doc;
     }
 
-    function stringify_doc(doc){
+    function stringify_doc(doc: Doc){
         var block_objs = doc.blocks.map(blc => ({ "id": blc.id, "from": blc.from, "lines": blc.lines}));
         
         var blocks_str = JSON.stringify(block_objs);
@@ -117,7 +117,7 @@ function graph_closure(){
         }
     }
     
-    function get_indent(line){
+    function get_indent(line: string) : [number, string]{
         var indent = 0;
         while(true){
             if(line.startsWith("\t")){
@@ -134,7 +134,7 @@ function graph_closure(){
         }
     }
 
-    function tab(indent){
+    function tab(indent: number){
         return " ".repeat(4 * indent);
     }
 
@@ -337,9 +337,11 @@ function graph_closure(){
             ele.addEventListener("click", (function(temp) {
 
                 return function(){
-                    window.event.stopPropagation();
+                    var ev = window.event as KeyboardEvent;
 
-                    if((window.event as KeyboardEvent).ctrlKey){
+                    ev.stopPropagation();
+
+                    if(ev.ctrlKey){
 
                         if(from_block == null){
 
@@ -387,7 +389,7 @@ function graph_closure(){
         });
     
     
-        g.edges().forEach(function(edge_id) {
+        g.edges().forEach(function(edge_id:any) {
             var blc1 = id_blocks.get(edge_id["v"]);
             var blc2 = id_blocks.get(edge_id["w"]);
 
@@ -395,17 +397,17 @@ function graph_closure(){
             add_edge(svg1, blc1, blc2, ed);
         });         
 
-        theGraph.pending = false;
+        logic_graph.pending = false;
     }
     
     class TextBlock {
         parent: any;
-        id: any;
-        from: any;
-        lines: any;
+        id: string;
+        from: string[];
+        lines: string[];
         ele: any;
         
-        constructor(parent, id, from, lines){
+        constructor(parent: Doc, id: string, from: string[], lines: string[]){
             this.parent = parent;
             this.id = id;
             this.from = from;
@@ -419,11 +421,10 @@ function graph_closure(){
             var in_math = false;
             var ul_indent = -1;
             var prev_line = "";
-            var indent, line;
             for(let current_line of this.lines){
                 var current_line_trim = current_line.trim();
 
-                [indent, line] = get_indent(current_line);
+                let [indent, line] = get_indent(current_line);
                 indent--;
 
                 if(current_line_trim == "$$"){
@@ -498,20 +499,18 @@ function graph_closure(){
         }
     }
 
-    var theGraph;
     class LogicGraph{
         pending: boolean;
-        docs: any[];
+        docs: Doc[];
         user: any;
 
         constructor(){
-            theGraph = this;
             this.pending = false;
             this.docs = [];
             this.user = null;
         }
 
-        show_doc(doc){
+        show_doc(doc: Doc){
 
             var svg1 = document.createElementNS("http://www.w3.org/2000/svg","svg");
             svg1.style.backgroundColor = "wheat";
@@ -542,11 +541,11 @@ function graph_closure(){
         * show_all_doc(){
             for(let rcv_doc of this.docs){
 
-                while(theGraph.pending){
+                while(this.pending){
                     yield;
                 }
 
-                theGraph.pending = true;
+                this.pending = true;
 
                 this.show_doc(rcv_doc);
             }
@@ -559,12 +558,13 @@ function graph_closure(){
 
             this.docs = [];
             db.collection('users-3').doc(this.user.uid).collection('docs')
-            .get().then((querySnapshot) => {
+            .get().then((querySnapshot: any) => {
                 querySnapshot.forEach((doc:any) => {
-                    var rcv_doc = doc.data();
+                    var rcv_doc = restore_doc(doc.data());
+
                     console.log(`${doc.id} => ${rcv_doc}`);                
 
-                    restore_doc(rcv_doc);
+                    
 
                     this.docs.push(rcv_doc);                    
                 });
@@ -609,7 +609,7 @@ function graph_closure(){
                 .then(function() {
                     console.log("Document written");
                 })
-                .catch(function(error) {
+                .catch(function(error: any) {
                     console.error("Error adding document: ", error);
                 });
             }
@@ -619,7 +619,7 @@ function graph_closure(){
 
     var db = firebase.firestore();
 
-    firebase.auth().onAuthStateChanged(function(user) {
+    firebase.auth().onAuthStateChanged(function(user: any) {
         if (user) {
             // User is signed in.
             console.log(`ログイン ${user.uid}`);
