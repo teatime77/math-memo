@@ -32,6 +32,8 @@ function graph_closure(){
     var dom_list : (HTMLElement | SVGSVGElement)[] = [];
     var timeout_id : number | null = null;
 
+    var sys_inf: any = { "ver": 4 };
+
     doc_title_text.addEventListener("blur", function(){
         cur_doc.title = doc_title_text.value.trim();
     });
@@ -554,7 +556,7 @@ function graph_closure(){
             }
 
             this.docs = [];
-            db.collection('users-3').doc(this.user.uid).collection('docs')
+            db.collection('users-' + sys_inf.ver ).doc(this.user.uid).collection('docs')
             .get().then((querySnapshot: any) => {
                 querySnapshot.forEach((doc:any) => {
                     var rcv_doc = restore_doc(doc.data());
@@ -599,7 +601,7 @@ function graph_closure(){
             }
 
             for(let doc of this.docs){
-                var doc_ref = db.collection('users-4').doc(this.user.uid).collection('docs').doc("" + doc.id);
+                var doc_ref = db.collection('users-' + (sys_inf.ver + 1)).doc(this.user.uid).collection('docs').doc("" + doc.id);
 
                 var doc_str = stringify_doc(doc);
                 doc_ref.set(doc_str)
@@ -611,10 +613,36 @@ function graph_closure(){
                 });
             }
 
+            var sys_ref = db.collection('sys').doc("0");
+            var ver = (sys_inf.ver + 1) % 10;
+            sys_ref.set({ "ver": ver })
+            .then(function() {
+                console.log("SYS inf written: " + ver);
+            })
+            .catch(function(error: any) {
+                console.error("Error adding SYS inf: ", error);
+            });
+
+
         }
     }
 
     var db = firebase.firestore();
+
+
+    db.collection('sys').doc("0").get()
+    .then(function(obj:any) {
+        if (obj.exists) {
+            sys_inf = obj.data();
+            console.log("SYS inf:" + sys_inf.ver);
+        } else {
+            // doc.data() will be undefined in this case
+            console.log("No such document!");
+        }
+    })
+    .catch(function(error:any) {
+        console.log("Error getting sys-inf:", error);
+    });    
 
     firebase.auth().onAuthStateChanged(function(user: any) {
         if (user) {
