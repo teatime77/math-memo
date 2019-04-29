@@ -550,6 +550,15 @@ function graph_closure(){
             }
         }
 
+        renum_blc_id(doc:Doc){
+            var ids = doc.blocks.map(x => x.id);
+            for(let blc of doc.blocks){
+                blc.id = "#" + ids.indexOf(blc.id);
+                blc.from = blc.from.map(x => "#" + ids.indexOf(x));
+                console.log(`blc id:[${blc.id}]`, blc.from);
+            }
+        }
+
         read_docs(){
             while (docs_select.options.length > 0) {                
                 docs_select.remove(0);
@@ -558,14 +567,10 @@ function graph_closure(){
             this.docs = [];
             db.collection('users-' + sys_inf.ver ).doc(this.user.uid).collection('docs')
             .get().then((querySnapshot: any) => {
-                querySnapshot.forEach((doc:any) => {
-                    var rcv_doc = restore_doc(doc.data());
+                querySnapshot.forEach((data:any) => {
+                    var doc = restore_doc(data.data());
 
-                    console.log(`${doc.id} => ${rcv_doc}`);                
-
-                    
-
-                    this.docs.push(rcv_doc);                    
+                    this.docs.push(doc);                    
                 });
 
                 this.docs.sort((a,b) => a.id - b.id );
