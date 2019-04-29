@@ -1,18 +1,36 @@
+
+declare var dagre:any;
+declare var MathJax:any;
+declare var firebase:any;
+
 function graph_closure(){
-    var block_text = document.getElementById("block-text");;
-    var msg_text = document.getElementById("msg-text");
-    var doc_title_text = document.getElementById("doc-title");
-    var docs_select = document.getElementById("docs-select");
+
+    class Doc {
+        id: number;
+        title : string;
+        blocks : TextBlock[];
+
+        constructor(id, title, blocks){
+            this.id = id;
+            this.title = title;
+            this.blocks = blocks;
+        }
+    }
+
+    var block_text : HTMLTextAreaElement = document.getElementById("block-text") as HTMLTextAreaElement;
+    var msg_text : HTMLSpanElement = document.getElementById("msg-text") as HTMLSpanElement;
+    var doc_title_text: HTMLInputElement = document.getElementById("doc-title") as HTMLInputElement;
+    var docs_select: HTMLSelectElement = document.getElementById("docs-select") as HTMLSelectElement;
 
     var block_cnt = 0;
     var click_cnt = 0;   
 
-    var cur_doc = { blocks: [] };
+    var cur_doc = new Doc(0, "", [] );
     var cur_block = null;
     var clicked = false; 
-    var from_block = null;
-    var dom_list = [];
-    var timeout_id = undefined;
+    var from_block : TextBlock | null = null;
+    var dom_list : (HTMLElement | SVGSVGElement)[] = [];
+    var timeout_id : number | null = null;
 
     doc_title_text.addEventListener("blur", function(){
         cur_doc.title = doc_title_text.value.trim();
@@ -23,13 +41,12 @@ function graph_closure(){
     });
 
     block_text.addEventListener("keypress", function(){
-        if(window.event.code == "Enter" && window.event.ctrlKey == true){
+        if((window.event as KeyboardEvent).code == "Enter" && (window.event as KeyboardEvent).ctrlKey == true){
     
             clear_dom();
 
-            var text_area = document.getElementById("block-text");
-            var lines = text_area.value.split("\n");
-            text_area.value = "";
+            var lines = block_text.value.split("\n");
+            block_text.value = "";
     
             var block = new TextBlock(cur_doc, "" + block_cnt, [], lines)
             block_cnt++;
@@ -54,35 +71,35 @@ function graph_closure(){
     });
 
 
-    function msg(txt){
-        if(timeout_id != undefined){
+    function msg(txt : string){
+        if(timeout_id != null){
             clearTimeout(timeout_id);
         }
 
         msg_text.innerHTML = txt;
 
-        timer_id = setTimeout(function(txt1){
+        timeout_id = setTimeout(function(txt1){
             return function(){
                 msg_text.innerHTML = "";
-                timeout_id = undefined;
+                timeout_id = null;
             }
         }(txt), 3000);
     }
 
     function clear_dom(){
         for(let dom of dom_list){
-            dom.parentNode.removeChild(dom);
+            dom.parentNode!.removeChild(dom);
         }
         dom_list = [];
     }
 
-    function restore_doc(doc){
+    function restore_doc(doc:any){
         doc.id = parseInt(doc.id, 10);
 
         var block_objs = JSON.parse(doc.blocks_str);
         delete doc.blocks_str;
 
-        doc.blocks = block_objs.map(blc => new TextBlock(doc, blc.id, blc.from, blc.lines));
+        doc.blocks = block_objs.map((blc:any) => new TextBlock(doc, blc.id, blc.from, blc.lines));
     }
 
     function stringify_doc(doc){
@@ -122,6 +139,8 @@ function graph_closure(){
     }
 
     class OrderedMap {
+        map: any;
+        keys: any[];
         constructor(){
             this.map = new Map();
             this.keys = [];
@@ -155,8 +174,8 @@ function graph_closure(){
     
     function add_node_rect(parent, nd){
         var rc = document.createElementNS("http://www.w3.org/2000/svg","rect");
-        rc.setAttribute("x", nd.x - nd.width/2);
-        rc.setAttribute("y", nd.y - nd.height/2);
+        rc.setAttribute("x", "" + (nd.x - nd.width/2));
+        rc.setAttribute("y", "" + (nd.y - nd.height/2));
         rc.setAttribute("width", nd.width);
         rc.setAttribute("height", nd.height);
         rc.setAttribute("fill", "cornsilk");
@@ -320,7 +339,7 @@ function graph_closure(){
                 return function(){
                     window.event.stopPropagation();
 
-                    if(window.event.ctrlKey){
+                    if((window.event as KeyboardEvent).ctrlKey){
 
                         if(from_block == null){
 
@@ -380,6 +399,12 @@ function graph_closure(){
     }
     
     class TextBlock {
+        parent: any;
+        id: any;
+        from: any;
+        lines: any;
+        ele: any;
+        
         constructor(parent, id, from, lines){
             this.parent = parent;
             this.id = id;
@@ -475,6 +500,9 @@ function graph_closure(){
 
     var theGraph;
     class LogicGraph{
+        pending: boolean;
+        docs: any[];
+        user: any;
 
         constructor(){
             theGraph = this;
@@ -532,7 +560,7 @@ function graph_closure(){
             this.docs = [];
             db.collection('users-3').doc(this.user.uid).collection('docs')
             .get().then((querySnapshot) => {
-                querySnapshot.forEach((doc) => {
+                querySnapshot.forEach((doc:any) => {
                     var rcv_doc = doc.data();
                     console.log(`${doc.id} => ${rcv_doc}`);                
 
@@ -616,11 +644,7 @@ function graph_closure(){
         }
     });
     
-    return new LogicGraph();
-}
+    var logic_graph : LogicGraph = new LogicGraph();
 
-var logic_graph;
-
-function body_onload(){
-    logic_graph = graph_closure();
+    return logic_graph;
 }

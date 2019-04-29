@@ -530,7 +530,7 @@ function graph_closure(){
             }
 
             this.docs = [];
-            db.collection('users-3').doc(this.user.uid).collection('docs')
+            db.collection('users-4').doc(this.user.uid).collection('docs')
             .get().then((querySnapshot) => {
                 querySnapshot.forEach((doc) => {
                     var rcv_doc = doc.data();
@@ -574,7 +574,7 @@ function graph_closure(){
             }
 
             for(let doc of this.docs){
-                var doc_ref = db.collection('users-4').doc(this.user.uid).collection('docs').doc("" + doc.id);
+                var doc_ref = db.collection('users-5').doc(this.user.uid).collection('docs').doc("" + doc.id);
 
                 var doc_str = stringify_doc(doc);
                 doc_ref.set(doc_str)

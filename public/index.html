@@ -41,7 +41,14 @@ firebase.initializeApp(config);
 
 <script src="js/dagre.min.js"></script>
 <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.10.1/jquery.min.js"></script>
-<script type="text/javascript" src="js/graph.js?v=5"></script>
+<script type="text/javascript" src="js/main.js?v=3"></script>
+
+<script type="text/javascript">
+var graph_obj;
+function body_onload(){
+    graph_obj = graph_closure();
+}
+</script>
 
 <style type="text/css">
 .m {
@@ -73,8 +80,8 @@ $$
             <span id="msg-text" style="font-size:larger; color:red">&nbsp;</span><br/>
         
             <input type="text" id="doc-title" style="width:40em" />
-            <input type="button" value="一覧" onclick="logic_graph.read_docs()" />
-            <input type="button" value="保存" onclick="logic_graph.save_docs()" />
+            <input type="button" value="一覧" onclick="graph_obj.read_docs()" />
+            <input type="button" value="保存" onclick="graph_obj.save_docs()" />
             <br/>
             <textarea id="block-text" rows="10" style="width:40em" ></textarea><br/>        
         </td>
