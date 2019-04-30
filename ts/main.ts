@@ -53,7 +53,7 @@ export default function graph_closure(){
             var lines = block_text.value.split("\n");
             block_text.value = "";
     
-            new TextBlock(cur_doc, [], lines);
+            new TextBlock(cur_doc, [], lines, null);
 
             logic_graph.show_doc(cur_doc);
         }
@@ -145,7 +145,7 @@ export default function graph_closure(){
             var fnc = function (x) {
                 return function() {
                     console.log(x.title);
-                    new TextBlock(cur_doc, [], [x.title]);
+                    new TextBlock(cur_doc, [], [x.title], doc.id);
                     logic_graph.show_doc(cur_doc);
                 };
             }(doc);
@@ -192,14 +192,14 @@ export default function graph_closure(){
         for(let [i, blc] of block_objs.entries()){
             console.assert("#" + i == blc.id);
 
-            new TextBlock(doc, blc.from, blc.lines);
+            new TextBlock(doc, blc.from, blc.lines, (blc.link == undefined ? null : blc.link));
         }
 
         return doc;
     }
 
     function stringify_doc(doc: Doc){
-        var block_objs = doc.blocks.map(blc => ({ "id": blc.id, "from": blc.from, "lines": blc.lines}));
+        var block_objs = doc.blocks.map(blc => ({ "id": blc.id, "from": blc.from, "lines": blc.lines, "link": blc.link}));
         
         var blocks_str = JSON.stringify(block_objs);
 
@@ -264,14 +264,21 @@ export default function graph_closure(){
     
     var padding = 10;
     
-    function add_node_rect(svg1: SVGSVGElement, nd: any){
+    function add_node_rect(svg1: SVGSVGElement, nd: any, block: TextBlock){
         var rc = document.createElementNS("http://www.w3.org/2000/svg","rect");
         rc.setAttribute("x", "" + (nd.x - nd.width/2));
         rc.setAttribute("y", "" + (nd.y - nd.height/2));
         rc.setAttribute("width", nd.width);
         rc.setAttribute("height", nd.height);
         rc.setAttribute("fill", "cornsilk");
-        rc.setAttribute("stroke", "green");
+        if(block.link == null){
+
+            rc.setAttribute("stroke", "green");
+        }
+        else{
+
+            rc.setAttribute("stroke", "blue");
+        }
         svg1.appendChild(rc);
     }
     
@@ -375,6 +382,45 @@ export default function graph_closure(){
 
         return [max_x - min_x, max_y - min_y]
     }
+
+    function onclick_block(temp: TextBlock) {
+
+        return function(){
+            var ev = window.event as KeyboardEvent;
+
+            ev.stopPropagation();
+
+            if(ev.ctrlKey){
+
+                if(from_block == null){
+
+                    msg("接続先のブロックをクリックしてください。");
+                    from_block = temp;
+                }
+                else{
+
+                    if(temp.from.includes(from_block.id)){
+
+                        msg("接続済みです。");
+                    }
+                    else{
+
+                        msg("ブロックを接続しました。" + from_block.id + "->" + temp.id);
+                        temp.from.push(from_block.id);
+                    }
+                    from_block = null;
+
+                    logic_graph.show_doc(cur_doc);
+                }
+            }
+            else{
+
+                console.log("click block " + (click_cnt++));
+                cur_block = temp;
+                block_text.value = cur_block.lines.join("\n");
+            }
+        }
+    }
     
     function ontypeset(id_blocks: OrderedMap<string, TextBlock>, svg1: SVGSVGElement){
         // Create a new directed graph 
@@ -424,46 +470,9 @@ export default function graph_closure(){
             ele.style.left = `${window.scrollX + rc1.x + nd.x - nd.width /2 + padding}px`
             ele.style.top  = `${window.scrollY + rc1.y + nd.y - nd.height/2 + padding}px`
 
-            ele.addEventListener("click", (function(temp) {
-
-                return function(){
-                    var ev = window.event as KeyboardEvent;
-
-                    ev.stopPropagation();
-
-                    if(ev.ctrlKey){
-
-                        if(from_block == null){
-
-                            msg("接続先のブロックをクリックしてください。");
-                            from_block = temp;
-                        }
-                        else{
-
-                            if(temp.from.includes(from_block.id)){
-
-                                msg("接続済みです。");
-                            }
-                            else{
-
-                                msg("ブロックを接続しました。" + from_block.id + "->" + temp.id);
-                                temp.from.push(from_block.id);
-                            }
-                            from_block = null;
-
-                            logic_graph.show_doc(cur_doc);
-                        }
-                    }
-                    else{
-
-                        console.log("click block " + (click_cnt++));
-                        cur_block = temp;
-                        block_text.value = cur_block.lines.join("\n");
-                    }
-               }
-            }(block)));
+            ele.addEventListener("click", (onclick_block(block)));
                 
-            add_node_rect(svg1, nd);
+            add_node_rect(svg1, nd, block);
         });
     
     
@@ -483,13 +492,15 @@ export default function graph_closure(){
         id: string;
         from: string[];
         lines: string[];
+        link : number | null;
         ele: HTMLDivElement | null;
         
-        constructor(parent: Doc, from: string[], lines: string[]){
+        constructor(parent: Doc, from: string[], lines: string[], link: number | null){
             this.parent = parent;
             this.id = "#" + parent.blocks.length;
             this.from = from;
             this.lines = lines;
+            this.link = link;
             this.ele = null;
 
             parent.blocks.push(this);
@@ -595,7 +606,7 @@ export default function graph_closure(){
             var max_id = Math.max(... this.docs.map(x => x.id));
             cur_doc = new Doc(max_id + 1, "タイトル", []);
 
-            new TextBlock(cur_doc, [], ["テキスト"]);
+            new TextBlock(cur_doc, [], ["テキスト"], null);
 
             this.docs.push(cur_doc);
 
