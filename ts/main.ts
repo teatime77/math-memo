@@ -22,7 +22,6 @@ export default function graph_closure(){
     var docs_select: HTMLSelectElement = document.getElementById("docs-select") as HTMLSelectElement;
     var menu_span = document.getElementById("menu-span") as HTMLSpanElement;
 
-    var block_cnt = 0;
     var click_cnt = 0;   
 
     var cur_doc = new Doc(0, "", [] );
@@ -54,10 +53,8 @@ export default function graph_closure(){
             var lines = block_text.value.split("\n");
             block_text.value = "";
     
-            var block = new TextBlock(cur_doc, "" + block_cnt, [], lines)
-            block_cnt++;
-    
-            cur_doc.blocks.push(block);
+            new TextBlock(cur_doc, [], lines);
+
             logic_graph.show_doc(cur_doc);
         }
     });
@@ -89,29 +86,50 @@ export default function graph_closure(){
         logic_graph.show_doc(cur_doc);
     });
 
-    function show_menu(ev:MouseEvent, menu_defs: [string, any][]){
-        
+    function make_span(text: string){
+        var span = document.createElement("span");
+        span.innerHTML = text;
+        return span;        
+    }
+
+    function make_button(label: string, fnc: any){
+        var btn = document.createElement("button");
+        btn.innerHTML = label;
+        btn.addEventListener("click", fnc);
+
+        return btn;
+    }
+
+    function make_sub_menu(parent: HTMLElement, label:string, sub_menu: any[]){
+        parent.appendChild( make_span(label) );
+
         var ul = document.createElement("ul");
         ul.className = "popup";
-        for(let [label, fnc] of menu_defs){
+        for(let [label, fnc] of sub_menu){
             var li = document.createElement("li");
+            if(Array.isArray(fnc)){
+
+                make_sub_menu(li, label, fnc);
+            }
+            else{
+
+                li.appendChild( make_button(label, fnc) );
+            }
             
-            var btn = document.createElement("button");
-            btn.innerHTML = label;
-            btn.addEventListener("click", fnc);
-
-            li.appendChild(btn);
             ul.appendChild(li);
-
         }
+        parent.appendChild( ul );
+    }
+
+    function show_menu(ev:MouseEvent, label:string, menu_defs: [string, any][]){
         var dlg = document.createElement("dialog") as HTMLDialogElement;
         dlg.style.position = "absolute";
         dlg.style.left = ev.x + "px";
         dlg.style.top  = ev.y + "px";
         dlg.addEventListener("click", ()=>dlg.close());
 
+        make_sub_menu(dlg, label, menu_defs);
 
-        dlg.appendChild(ul);
         document.body.appendChild(dlg);
         dlg.showModal();
     }
@@ -120,7 +138,23 @@ export default function graph_closure(){
         ev.preventDefault();
         console.log(ev);
 
-        show_menu(ev, [
+        var docs_menu : [string, any][] = [];
+
+        for(let doc of logic_graph.docs){
+
+            var fnc = function (x) {
+                return function() {
+                    console.log(x.title);
+                    new TextBlock(cur_doc, [], [x.title]);
+                    logic_graph.show_doc(cur_doc);
+                };
+            }(doc);
+
+            docs_menu.push([ doc.title, fnc ]);
+        }
+
+        show_menu(ev, "メニュー", [
+            [ "コピー", docs_menu ], 
             ["ファイル", ()=>{ console.log("ファイル"); }],
             ["編集", ()=>{ console.log("編集"); }],
             ["表示", ()=>{ console.log("表示"); }],
@@ -154,7 +188,12 @@ export default function graph_closure(){
         var doc = new Doc(parseInt(doc_obj.id, 10), doc_obj.title, []);
 
         var block_objs = JSON.parse(doc_obj.blocks_str);
-        doc.blocks = block_objs.map((blc:any) => new TextBlock(doc, blc.id, blc.from, blc.lines));
+
+        for(let [i, blc] of block_objs.entries()){
+            console.assert("#" + i == blc.id);
+
+            new TextBlock(doc, blc.from, blc.lines);
+        }
 
         return doc;
     }
@@ -446,12 +485,14 @@ export default function graph_closure(){
         lines: string[];
         ele: HTMLDivElement | null;
         
-        constructor(parent: Doc, id: string, from: string[], lines: string[]){
+        constructor(parent: Doc, from: string[], lines: string[]){
             this.parent = parent;
-            this.id = id;
+            this.id = "#" + parent.blocks.length;
             this.from = from;
             this.lines = lines;
             this.ele = null;
+
+            parent.blocks.push(this);
         }
 
 
@@ -554,9 +595,7 @@ export default function graph_closure(){
             var max_id = Math.max(... this.docs.map(x => x.id));
             cur_doc = new Doc(max_id + 1, "タイトル", []);
 
-            var blc = new TextBlock(cur_doc, "#0", [], ["テキスト"]);
-
-            cur_doc.blocks.push(blc)
+            new TextBlock(cur_doc, [], ["テキスト"]);
 
             this.docs.push(cur_doc);
 
@@ -575,6 +614,8 @@ export default function graph_closure(){
 
             var svg1 = document.createElementNS("http://www.w3.org/2000/svg","svg");
             svg1.style.backgroundColor = "wheat";
+            svg1.style.width = "1px";
+            svg1.style.height = "1px";
             svg1.addEventListener("click", function(){
                 console.log("SVG clicked " + (click_cnt++));
             })
@@ -592,11 +633,7 @@ export default function graph_closure(){
             MathJax.Hub.Queue(["Typeset",MathJax.Hub]);
             MathJax.Hub.Queue([ontypeset, id_blocks, svg1]);
 
-            var hr = document.createElement("hr");
-            document.body.appendChild(hr);
-
             dom_list.push(svg1);
-            dom_list.push(hr);
         }
 
         read_docs(){
@@ -636,8 +673,9 @@ export default function graph_closure(){
                 msg("ログインしていません。");
             }
 
+            var next_ver = (sys_inf.ver + 1) % 10;
             for(let doc of this.docs){
-                var doc_ref = db.collection('users-' + (sys_inf.ver + 1)).doc(this.user.uid).collection('docs').doc("" + doc.id);
+                var doc_ref = db.collection('users-' + next_ver).doc(this.user.uid).collection('docs').doc("" + doc.id);
 
                 var doc_str = stringify_doc(doc);
                 doc_ref.set(doc_str)
@@ -650,10 +688,9 @@ export default function graph_closure(){
             }
 
             var sys_ref = db.collection('sys').doc("0");
-            var ver = (sys_inf.ver + 1) % 10;
-            sys_ref.set({ "ver": ver })
+            sys_ref.set({ "ver": next_ver })
             .then(function() {
-                console.log("SYS inf written: " + ver);
+                console.log("SYS inf written: " + next_ver);
             })
             .catch(function(error: any) {
                 console.error("Error adding SYS inf: ", error);
@@ -662,7 +699,6 @@ export default function graph_closure(){
     }
 
     var db = firebase.firestore();
-
 
     db.collection('sys').doc("0").get()
     .then(function(obj:any) {

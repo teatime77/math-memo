@@ -44,7 +44,7 @@ firebase.initializeApp(config);
 <script type="text/javascript">
 var exports = {};
 </script>
-<script type="text/javascript" src="js/main.js?v=21"></script>
+<script type="text/javascript" src="js/main.js?v=36"></script>
 <script type="text/javascript">
 var graph_obj;
 
@@ -57,7 +57,7 @@ function body_onload(){
 <style type="text/css">
 ul.popup {
     list-style: none;
-    padding-left: 10px; 
+    padding-left: 20px; 
     /* position: absolute;    */
 }
 
@@ -72,14 +72,6 @@ path {
 </head>
 
 <body onload="body_onload()">
-$$
-  \newcommand{\red}[1]{ \color{red}{#1} }
-  \newcommand{\setR}{ \mathbf{R} }
-  \newcommand{\opensets}[1]{ \mathscr{#1} }
-  \newcommand{\closedsets}[1]{ \mathscr{#1} } 
-  \newcommand{\define}{ \overset{def}{\iff} }
-  \newcommand{\defeq}{ \overset{def}{=} }
-$$
     
 <table style="position: sticky; top: 0; z-index: 100;" contextmenu="example">
     <tr>
@@ -99,6 +91,16 @@ $$
         <td>
             <select id="docs-select" size="10" style="width:15em">
             </select>
+        </td>
+        <td>
+$$
+\newcommand{\red}[1]{ \color{red}{#1} }
+\newcommand{\setR}{ \mathbf{R} }
+\newcommand{\opensets}[1]{ \mathscr{#1} }
+\newcommand{\closedsets}[1]{ \mathscr{#1} } 
+\newcommand{\define}{ \overset{def}{\iff} }
+\newcommand{\defeq}{ \overset{def}{=} }
+$$        
         </td>
     </tr>
 </table>
