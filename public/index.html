@@ -41,14 +41,15 @@ firebase.initializeApp(config);
 
 <script src="js/dagre.min.js"></script>
 <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.10.1/jquery.min.js"></script>
-
+<script type="text/javascript">
+var exports = {};
+</script>
+<script type="text/javascript" src="js/main.js?v=16"></script>
 <script type="text/javascript">
 var graph_obj;
 
 function body_onload(){
     console.log("body load");
-
-    var graph_closure = document.body["graph_closure"];
     graph_obj = graph_closure();
 }
 </script>
@@ -101,13 +102,5 @@ $$
         </td>
     </tr>
 </table>
-
-<div id="root">
-</div>
-<script type="text/javascript" src="js/bundle.js?v=14"></script>
-<script type="module">
-    // import {graph_closure} from "./js/bundle.js";
-    // import {graph_closure} from "main";
-</script>
 </body>
 </html>
