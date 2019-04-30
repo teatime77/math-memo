@@ -1,9 +1,8 @@
-
 declare var dagre:any;
 declare var MathJax:any;
 declare var firebase:any;
 
-function graph_closure(){
+export default function graph_closure(){
 
     class Doc {
         id: number;
@@ -21,6 +20,7 @@ function graph_closure(){
     var msg_text : HTMLSpanElement = document.getElementById("msg-text") as HTMLSpanElement;
     var doc_title_text: HTMLInputElement = document.getElementById("doc-title") as HTMLInputElement;
     var docs_select: HTMLSelectElement = document.getElementById("docs-select") as HTMLSelectElement;
+    var menu_span = document.getElementById("menu-span") as HTMLSpanElement;
 
     var block_cnt = 0;
     var click_cnt = 0;   
@@ -70,6 +70,44 @@ function graph_closure(){
         cur_doc = logic_graph.docs[idx];
 
         logic_graph.show_doc(cur_doc);
+    });
+
+    function show_menu(ev:MouseEvent, menu_defs: [string, any][]){
+        
+        var ul = document.createElement("ul");
+        ul.className = "popup";
+        for(let [label, fnc] of menu_defs){
+            var li = document.createElement("li");
+            
+            var btn = document.createElement("button");
+            btn.innerHTML = label;
+            btn.addEventListener("click", fnc);
+
+            li.appendChild(btn);
+            ul.appendChild(li);
+
+        }
+        var dlg = document.createElement("dialog") as HTMLDialogElement;
+        dlg.style.position = "absolute";
+        dlg.style.left = ev.x + "px";
+        dlg.style.top  = ev.y + "px";
+        dlg.addEventListener("click", ()=>dlg.close());
+
+
+        dlg.appendChild(ul);
+        document.body.appendChild(dlg);
+        dlg.showModal();
+    }
+
+    menu_span.addEventListener("contextmenu", function(ev){
+        ev.preventDefault();
+        console.log(ev);
+
+        show_menu(ev, [
+            ["ファイル", ()=>{ console.log("ファイル"); }],
+            ["編集", ()=>{ console.log("編集"); }],
+            ["表示", ()=>{ console.log("表示"); }],
+        ]);
     });
 
 
@@ -155,16 +193,16 @@ function graph_closure(){
             this.map.set(key, value);
         }
     
-        get(key: K){
+        get(key: K) : V {
             return this.map.get(key);
         }
     
-        has(key: K){
+        has(key: K) : boolean {
             return this.map.has(key);
         }
     
-        values(){
-            return this.keys.map(x => this.map.get(x));
+        values() : V[] {
+            return this.keys.map(x => this.map.get(x) as V);
         }
     }    
     
@@ -295,9 +333,9 @@ function graph_closure(){
     
         for(let blc of id_blocks.values()){
             var width, height;
-            [width, height] = get_size(blc.ele);
-            blc.ele.style.width  = (width + 2 * padding) + "px";
-            blc.ele.style.height = (height + 2 * padding) + "px";
+            [width, height] = get_size(blc.ele!);
+            blc.ele!.style.width  = (width + 2 * padding) + "px";
+            blc.ele!.style.height = (height + 2 * padding) + "px";
 
             g.setNode(blc.id,    { width: width + 2 * padding, height: height + 2 * padding });   // label: ele.id,  
 
@@ -325,13 +363,12 @@ function graph_closure(){
             var nd = g.node(id);
     
             var block = id_blocks.get(id);
-            var ele = block.ele;
+            var ele = block.ele!;
         
             ele.style.position = "absolute";
             ele.style.left = `${window.scrollX + rc1.x + nd.x - nd.width /2 + padding}px`
             ele.style.top  = `${window.scrollY + rc1.y + nd.y - nd.height/2 + padding}px`
 
-            ele.setAttribute("data-block", block)
             ele.addEventListener("click", (function(temp) {
 
                 return function(){
@@ -368,20 +405,9 @@ function graph_closure(){
                         console.log("click block " + (click_cnt++));
                         cur_block = temp;
                         block_text.value = temp.lines.join("\n");
-
-                        cur_doc = temp.parent;
-                        if(cur_doc.title == undefined){
-                            doc_title_text.value = "";
-                        }
-                        else{
-
-                            doc_title_text.value = cur_doc.title;
-                        }
                     }
                }
             }(block)));
-            
-            console.log(ele.id + ":" + ele.getAttribute("data-block"));
                 
             add_node_rect(svg1, nd);
         });
@@ -509,7 +535,25 @@ function graph_closure(){
             this.user = null;
         }
 
+        new_doc(){
+            clear_dom();
+
+            var max_id = Math.max(... this.docs.map(x => x.id));
+            cur_doc = new Doc(max_id + 1, "タイトル", []);
+
+            var blc = new TextBlock(cur_doc, "#0", [], ["テキスト"]);
+
+            cur_doc.blocks.push(blc)
+
+            var opt = document.createElement("option");
+            opt.text = cur_doc.title;
+            docs_select.appendChild(opt);
+    
+            logic_graph.show_doc(cur_doc);    
+        }
+
         show_doc(doc: Doc){
+            doc_title_text.value = cur_doc.title;
 
             var svg1 = document.createElementNS("http://www.w3.org/2000/svg","svg");
             svg1.style.backgroundColor = "wheat";
@@ -535,28 +579,6 @@ function graph_closure(){
 
             dom_list.push(svg1);
             dom_list.push(hr);
-        }
-
-        * show_all_doc(){
-            for(let rcv_doc of this.docs){
-
-                while(this.pending){
-                    yield;
-                }
-
-                this.pending = true;
-
-                this.show_doc(rcv_doc);
-            }
-        }
-
-        renum_blc_id(doc:Doc){
-            var ids = doc.blocks.map(x => x.id);
-            for(let blc of doc.blocks){
-                blc.id = "#" + ids.indexOf(blc.id);
-                blc.from = blc.from.map(x => "#" + ids.indexOf(x));
-                console.log(`blc id:[${blc.id}]`, blc.from);
-            }
         }
 
         read_docs(){
@@ -587,15 +609,6 @@ function graph_closure(){
                     docs_select.appendChild(opt);
                 }
                 console.log("rcv doc 終わり", this.docs);
-
-                // var gen_show_all_doc = this.show_all_doc();
-                // var timer_id = setInterval(function(){
-                //     var ret = gen_show_all_doc.next();   
-    
-                //     if(ret.done){
-                //         clearInterval(timer_id);
-                //     }
-                // },10);
             });            
         }
 
@@ -627,8 +640,6 @@ function graph_closure(){
             .catch(function(error: any) {
                 console.error("Error adding SYS inf: ", error);
             });
-
-
         }
     }
 
@@ -673,8 +684,90 @@ function graph_closure(){
             console.log("ログアウト");
         }
     });
+
+    render_game();
     
     var logic_graph : LogicGraph = new LogicGraph();
 
     return logic_graph;
 }
+
+// import {render_game} from "./memo";
+import * as React from "react";
+import * as ReactDOM from 'react-dom';
+
+interface ISquareProps {
+    value: number;
+}
+
+class Square extends React.Component<ISquareProps, {}> {
+    // constructor(props: any){
+    //     super(props);
+    // }
+
+    render() {
+        return (
+          <button className="square">
+            {this.props.value}
+          </button>
+        );
+    }
+}
+
+class Board extends React.Component {
+  renderSquare(i:any) {
+    return <Square value={i} />;
+  }
+
+  render() {
+    const status = 'Next player: X';
+
+    return (
+      <div>
+        <div className="status">{status}</div>
+        <div className="board-row">
+          {this.renderSquare(0)}
+          {this.renderSquare(1)}
+          {this.renderSquare(2)}
+        </div>
+        <div className="board-row">
+          {this.renderSquare(3)}
+          {this.renderSquare(4)}
+          {this.renderSquare(5)}
+        </div>
+        <div className="board-row">
+          {this.renderSquare(6)}
+          {this.renderSquare(7)}
+          {this.renderSquare(8)}
+        </div>
+      </div>
+    );
+  }
+}
+
+class Game extends React.Component {
+  render() {
+    return (
+      <div className="game">
+        <div className="game-board">
+          <Board />
+        </div>
+        <div className="game-info">
+          <div>{/* status */}</div>
+          <ol>{/* TODO */}</ol>
+        </div>
+      </div>
+    );
+  }
+}
+
+// ========================================
+
+function render_game(){
+  ReactDOM.render(
+    <Game />,
+    document.getElementById('root')
+  );  
+}
+
+(document.body as any)["graph_closure"] = graph_closure;
