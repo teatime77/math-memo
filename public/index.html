@@ -41,19 +41,25 @@ firebase.initializeApp(config);
 
 <script src="js/dagre.min.js"></script>
 <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.10.1/jquery.min.js"></script>
-<script type="text/javascript" src="js/main.js?v=13"></script>
 
 <script type="text/javascript">
 var graph_obj;
+
 function body_onload(){
+    console.log("body load");
+
+    var graph_closure = document.body["graph_closure"];
     graph_obj = graph_closure();
 }
 </script>
 
 <style type="text/css">
-.m {
-    position: absolute;
+ul.popup {
+    list-style: none;
+    padding-left: 10px; 
+    /* position: absolute;    */
 }
+
 path {
     cursor: pointer;
 }
@@ -73,15 +79,19 @@ $$
   \newcommand{\define}{ \overset{def}{\iff} }
   \newcommand{\defeq}{ \overset{def}{=} }
 $$
-<table style="position: sticky; top: 0; z-index: 100;">
+    
+<table style="position: sticky; top: 0; z-index: 100;" contextmenu="example">
     <tr>
         <td>
-            <a href="login.html" >ログイン</a><br/>
+            <a href="login.html" >ログイン</a>
+            <span id="menu-span" style="background-color:cornsilk; width: 100px">メニュー</span>
+            <input type="button" value="新規" onclick="graph_obj.new_doc()" />
+            <input type="button" value="一覧" onclick="graph_obj.read_docs()" />
+            <input type="button" value="保存" onclick="graph_obj.save_docs()" />            
+            <br/>
             <span id="msg-text" style="font-size:larger; color:red">&nbsp;</span><br/>
         
             <input type="text" id="doc-title" style="width:40em" />
-            <input type="button" value="一覧" onclick="graph_obj.read_docs()" />
-            <input type="button" value="保存" onclick="graph_obj.save_docs()" />
             <br/>
             <textarea id="block-text" rows="10" style="width:40em" ></textarea><br/>        
         </td>
@@ -92,5 +102,12 @@ $$
     </tr>
 </table>
 
+<div id="root">
+</div>
+<script type="text/javascript" src="js/bundle.js?v=11"></script>
+<script type="module">
+    // import {graph_closure} from "./js/bundle.js";
+    // import {graph_closure} from "main";
+</script>
 </body>
 </html>
