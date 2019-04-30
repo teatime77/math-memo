@@ -192,14 +192,15 @@ export default function graph_closure(){
         for(let [i, blc] of block_objs.entries()){
             console.assert("#" + i == blc.id);
 
-            new TextBlock(doc, blc.from, blc.lines, (blc.link == undefined ? null : blc.link));
+            var inputs = blc.inputs.map((x:any) => new Edge(x.src_id, x.dst_id, x.label));
+            new TextBlock(doc, inputs, blc.lines, (blc.link == undefined ? null : blc.link));
         }
 
         return doc;
     }
 
     function stringify_doc(doc: Doc){
-        var block_objs = doc.blocks.map(blc => ({ "id": blc.id, "from": blc.from, "lines": blc.lines, "link": blc.link}));
+        var block_objs = doc.blocks.map(blc => blc.to_json());
         
         var blocks_str = JSON.stringify(block_objs);
 
@@ -328,9 +329,9 @@ export default function graph_closure(){
                     var blc1 = temp[0];
                     var blc2 = temp[1];
 
-                    var k = blc2.from.indexOf(blc1.id);
+                    var k = blc2.input_src_ids().indexOf(blc1.id);
                     console.assert(k != -1);
-                    blc2.from.splice(k, 1);
+                    blc2.inputs.splice(k, 1);
 
                     // block_text.value = temp.lines.join("\n");
             
@@ -399,14 +400,14 @@ export default function graph_closure(){
                 }
                 else{
 
-                    if(temp.from.includes(from_block.id)){
+                    if(temp.input_src_ids().includes(from_block.id)){
 
                         msg("接続済みです。");
                     }
                     else{
 
                         msg("ブロックを接続しました。" + from_block.id + "->" + temp.id);
-                        temp.from.push(from_block.id);
+                        temp.inputs.push(new Edge(from_block.id, temp.id, ""));
                     }
                     from_block = null;
 
@@ -440,7 +441,7 @@ export default function graph_closure(){
 
             g.setNode(blc.id,    { width: width + 2 * padding, height: height + 2 * padding });   // label: ele.id,  
 
-            for(let id of blc.from){
+            for(let id of blc.input_src_ids()){
 
                 g.setEdge(id, blc.id);
             }
@@ -486,19 +487,35 @@ export default function graph_closure(){
 
         logic_graph.pending = false;
     }
+
+    class Edge {
+        src_id: string;
+        dst_id: string;
+        label: string;
+
+        constructor(src_id: string, dst_id: string, label: string){
+            this.src_id = src_id;
+            this.dst_id = dst_id;
+            this.label = label;
+        }
+
+        to_json(){
+            return { "src_id": this.src_id, "dst_id": this.dst_id, "label": this.label };
+        }
+    }
     
     class TextBlock {
         parent: any;
         id: string;
-        from: string[];
+        inputs: Edge[];
         lines: string[];
         link : number | null;
         ele: HTMLDivElement | null;
         
-        constructor(parent: Doc, from: string[], lines: string[], link: number | null){
+        constructor(parent: Doc, inputs: Edge[], lines: string[], link: number | null){
             this.parent = parent;
             this.id = "#" + parent.blocks.length;
-            this.from = from;
+            this.inputs = inputs;
             this.lines = lines;
             this.link = link;
             this.ele = null;
@@ -506,6 +523,13 @@ export default function graph_closure(){
             parent.blocks.push(this);
         }
 
+        to_json(){
+            return { "id": this.id, "inputs": this.inputs.map(x => x.to_json()), "lines": this.lines, "link": this.link}
+        }
+
+        input_src_ids(){
+            return this.inputs.map(x => x.src_id);
+        }
 
         make_html_lines(){
             var html_lines = [];            
