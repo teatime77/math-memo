@@ -26,7 +26,7 @@ export default function graph_closure(){
     var click_cnt = 0;   
 
     var cur_doc = new Doc(0, "", [] );
-    var cur_block = null;
+    var cur_block : TextBlock | null = null;
     var clicked = false; 
     var from_block : TextBlock | null = null;
     var dom_list : (HTMLElement | SVGSVGElement)[] = [];
@@ -36,6 +36,12 @@ export default function graph_closure(){
 
     doc_title_text.addEventListener("blur", function(){
         cur_doc.title = doc_title_text.value.trim();
+
+        console.assert(docs_select.selectedIndex != -1);
+        console.assert(logic_graph.docs[docs_select.selectedIndex] === cur_doc);
+
+        var opt = docs_select.selectedOptions[0];
+        opt.text = cur_doc.title;
     });
 
     document.body.addEventListener("click", function(){
@@ -45,8 +51,6 @@ export default function graph_closure(){
     block_text.addEventListener("keypress", function(){
         if((window.event as KeyboardEvent).code == "Enter" && (window.event as KeyboardEvent).ctrlKey == true){
     
-            clear_dom();
-
             var lines = block_text.value.split("\n");
             block_text.value = "";
     
@@ -58,6 +62,21 @@ export default function graph_closure(){
         }
     });
 
+    block_text.addEventListener("blur", function(){
+        if(cur_block != null){
+            if(cur_block.lines.join("\n") != block_text.value){
+                // ブロックのテキストが変わった場合
+
+                cur_block.lines = block_text.value.split('\n');
+
+                logic_graph.show_doc(cur_doc);
+            }
+
+            cur_block = null;
+            block_text.value = "";
+        }
+    });
+
     docs_select.addEventListener("change", function(){
 
         var idx = docs_select.selectedIndex;
@@ -65,8 +84,6 @@ export default function graph_closure(){
             return;
         }
         
-        clear_dom();
-
         cur_doc = logic_graph.docs[idx];
 
         logic_graph.show_doc(cur_doc);
@@ -271,7 +288,6 @@ export default function graph_closure(){
 
                     // block_text.value = temp.lines.join("\n");
             
-                    clear_dom();
                     logic_graph.show_doc(cur_doc);
 
                     return;
@@ -396,7 +412,6 @@ export default function graph_closure(){
                             }
                             from_block = null;
 
-                            clear_dom();
                             logic_graph.show_doc(cur_doc);
                         }
                     }
@@ -404,7 +419,7 @@ export default function graph_closure(){
 
                         console.log("click block " + (click_cnt++));
                         cur_block = temp;
-                        block_text.value = temp.lines.join("\n");
+                        block_text.value = cur_block.lines.join("\n");
                     }
                }
             }(block)));
@@ -536,8 +551,6 @@ export default function graph_closure(){
         }
 
         new_doc(){
-            clear_dom();
-
             var max_id = Math.max(... this.docs.map(x => x.id));
             cur_doc = new Doc(max_id + 1, "タイトル", []);
 
@@ -545,14 +558,19 @@ export default function graph_closure(){
 
             cur_doc.blocks.push(blc)
 
+            this.docs.push(cur_doc);
+
             var opt = document.createElement("option");
             opt.text = cur_doc.title;
             docs_select.appendChild(opt);
+            docs_select.selectedIndex = docs_select.options.length - 1;
     
             logic_graph.show_doc(cur_doc);    
         }
 
         show_doc(doc: Doc){
+            clear_dom();
+
             doc_title_text.value = cur_doc.title;
 
             var svg1 = document.createElementNS("http://www.w3.org/2000/svg","svg");
