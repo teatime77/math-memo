@@ -19,6 +19,7 @@ export default function graph_closure(){
     var block_text : HTMLTextAreaElement = document.getElementById("block-text") as HTMLTextAreaElement;
     var msg_text : HTMLSpanElement = document.getElementById("msg-text") as HTMLSpanElement;
     var doc_title_text: HTMLInputElement = document.getElementById("doc-title") as HTMLInputElement;
+    var edge_label_input = document.getElementById("edge-label") as HTMLInputElement;
     var docs_select: HTMLSelectElement = document.getElementById("docs-select") as HTMLSelectElement;
     var menu_span = document.getElementById("menu-span") as HTMLSpanElement;
 
@@ -26,6 +27,7 @@ export default function graph_closure(){
 
     var cur_doc = new Doc(0, "", [] );
     var cur_block : TextBlock | null = null;
+    var cur_edge  : Edge | null = null;
     var clicked = false; 
     var from_block : TextBlock | null = null;
     var dom_list : (HTMLElement | SVGSVGElement)[] = [];
@@ -72,6 +74,15 @@ export default function graph_closure(){
             cur_block = null;
             block_text.value = "";
         }
+    });
+
+    edge_label_input.addEventListener("blur", function(){
+        if(cur_edge == null){
+            return;
+        }
+        cur_edge.label = edge_label_input.value.trim();
+
+        logic_graph.show_doc(cur_doc);
     });
 
     docs_select.addEventListener("change", function(){
@@ -282,6 +293,43 @@ export default function graph_closure(){
         }
         svg1.appendChild(rc);
     }
+
+    function onclick_path(temp: [TextBlock, TextBlock]) {
+
+        return function(){
+            (window.event as MouseEvent).stopPropagation();
+
+            var blc1 = temp[0];
+            var blc2 = temp[1];
+
+            var input_idx = blc2.input_src_ids().indexOf(blc1.id);
+            console.assert(input_idx != -1);
+            cur_edge = blc2.inputs[input_idx];
+
+            if (clicked) {
+                clicked = false;
+
+                console.log("double click!! " + (click_cnt++) + " " + temp);
+                blc2.inputs.splice(input_idx, 1);
+
+                // block_text.value = temp.lines.join("\n");
+        
+                logic_graph.show_doc(cur_doc);
+
+                return;
+            }
+        
+            clicked = true;
+            setTimeout(function () {
+                if (clicked) {
+                    console.log("single click! " + (click_cnt++));
+                    edge_label_input.value = cur_edge!.label;
+                }
+        
+                clicked = false;
+            }, 300);
+       }
+    }
     
     function add_edge(svg1: SVGSVGElement, block1: TextBlock, block2: TextBlock, ed: any){
         var path = document.createElementNS("http://www.w3.org/2000/svg","path");
@@ -319,37 +367,7 @@ export default function graph_closure(){
         path.setAttribute("stroke-width", "3px");
         path.setAttribute("d", d);
 
-        path.addEventListener("click", (function(temp) {
-
-            return function(){                
-                if (clicked) {
-                    clicked = false;
-
-                    console.log("double click!! " + (click_cnt++) + " " + temp);
-                    var blc1 = temp[0];
-                    var blc2 = temp[1];
-
-                    var k = blc2.input_src_ids().indexOf(blc1.id);
-                    console.assert(k != -1);
-                    blc2.inputs.splice(k, 1);
-
-                    // block_text.value = temp.lines.join("\n");
-            
-                    logic_graph.show_doc(cur_doc);
-
-                    return;
-                }
-            
-                clicked = true;
-                setTimeout(function () {
-                    if (clicked) {
-                        console.log("single click! " + (click_cnt++));
-                    }
-            
-                    clicked = false;
-                }, 300);
-           }
-        }([block1, block2])));
+        path.addEventListener("click", (onclick_path([block1, block2])));
 
         svg1.appendChild(path);
     }    
