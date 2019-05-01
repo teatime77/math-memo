@@ -30,7 +30,8 @@ function tab(indent: number){
     return " ".repeat(4 * indent);
 }
 
-export function make_html_lines(lines: string[]){
+export function make_html_lines(text: string){
+    var lines = text.split('\n');
     var html_lines = [];            
 
     var in_math = false;
@@ -130,8 +131,6 @@ function onclick_edge(temp: [TextBlock, TextBlock]) {
 
             console.log("double click!! " + (click_cnt++) + " " + temp);
             blc2.inputs.splice(input_idx, 1);
-
-            // block_text.value = temp.lines.join("\n");
     
             show_doc(cur_doc);
 
@@ -255,7 +254,7 @@ function onclick_block(temp: TextBlock) {
 
             console.log("click block " + (click_cnt++));
             cur_block = temp;
-            block_text.value = cur_block.lines.join("\n");
+            block_text.value = cur_block.text;
         }
     }
 }

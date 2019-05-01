@@ -49,10 +49,9 @@ document.body.addEventListener("click", function(){
 block_text.addEventListener("keypress", function(){
     if((window.event as KeyboardEvent).code == "Enter" && (window.event as KeyboardEvent).ctrlKey == true){
 
-        var lines = block_text.value.split("\n");
-        block_text.value = "";
+        new TextBlock(cur_doc, [], block_text.value, null);
 
-        new TextBlock(cur_doc, [], lines, null);
+        block_text.value = "";
 
         show_doc(cur_doc);
     }
@@ -60,10 +59,10 @@ block_text.addEventListener("keypress", function(){
 
 block_text.addEventListener("blur", function(){
     if(cur_block != null){
-        if(cur_block.lines.join("\n") != block_text.value){
+        if(cur_block.text != block_text.value){
             // ブロックのテキストが変わった場合
 
-            cur_block.lines = block_text.value.split('\n');
+            cur_block.text = block_text.value;
 
             show_doc(cur_doc);
         }
@@ -153,7 +152,7 @@ menu_span.addEventListener("contextmenu", function(ev){
         var fnc = function (x) {
             return function() {
                 console.log(x.title);
-                new TextBlock(cur_doc, [], [x.title], doc.id);
+                new TextBlock(cur_doc, [], x.title, doc.id);
                 show_doc(cur_doc);
             };
         }(doc);
@@ -194,7 +193,7 @@ function restore_doc(doc_obj:any) : Doc {
         console.assert("#" + i == blc.id);
 
         var inputs = blc.inputs.map((x:any) => new Edge(x.src_id, x.dst_id, x.label));
-        new TextBlock(doc, inputs, blc.lines, (blc.link == undefined ? null : blc.link));
+        new TextBlock(doc, inputs, blc.text, (blc.link == undefined ? null : blc.link));
     }
 
     return doc;
@@ -263,15 +262,15 @@ export class TextBlock {
     parent: any;
     id: string;
     inputs: Edge[];
-    lines: string[];
+    text: string;
     link : number | null;
     ele: HTMLDivElement | null;
     
-    constructor(parent: Doc, inputs: Edge[], lines: string[], link: number | null){
+    constructor(parent: Doc, inputs: Edge[], text: string, link: number | null){
         this.parent = parent;
         this.id = "#" + parent.blocks.length;
         this.inputs = inputs;
-        this.lines = lines;
+        this.text = text;
         this.link = link;
         this.ele = null;
 
@@ -279,7 +278,7 @@ export class TextBlock {
     }
 
     to_json(){
-        return { "id": this.id, "inputs": this.inputs.map(x => x.to_json()), "lines": this.lines, "link": this.link}
+        return { "id": this.id, "inputs": this.inputs.map(x => x.to_json()), "text": this.text, "link": this.link}
     }
 
     input_src_ids(){
@@ -292,7 +291,7 @@ export class TextBlock {
     */
     make(){
         this.ele = document.createElement("div");
-        this.ele.innerHTML = make_html_lines(this.lines);
+        this.ele.innerHTML = make_html_lines(this.text);
         document.body.appendChild(this.ele);
         
         dom_list.push(this.ele);
@@ -314,7 +313,7 @@ export class LogicGraph{
         var max_id = Math.max(... this.docs.map(x => x.id));
         cur_doc = new Doc(max_id + 1, "タイトル", []);
 
-        new TextBlock(cur_doc, [], ["テキスト"], null);
+        new TextBlock(cur_doc, [], "テキスト", null);
 
         this.docs.push(cur_doc);
 
