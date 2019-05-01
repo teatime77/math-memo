@@ -1,12 +1,11 @@
+/// <reference path="graph.ts" />
 namespace MathMemo {
 
-declare var dagre:any;
-declare var MathJax:any;
 declare var firebase:any;
 
-var block_text : HTMLTextAreaElement = document.getElementById("block-text") as HTMLTextAreaElement;
+export var block_text : HTMLTextAreaElement = document.getElementById("block-text") as HTMLTextAreaElement;
 
-class Doc {
+export class Doc {
     id: number;
     title : string;
     blocks : TextBlock[];
@@ -19,19 +18,16 @@ class Doc {
 }
 
 var msg_text : HTMLSpanElement = document.getElementById("msg-text") as HTMLSpanElement;
-var doc_title_text: HTMLInputElement = document.getElementById("doc-title") as HTMLInputElement;
-var edge_label_input = document.getElementById("edge-label") as HTMLInputElement;
+export var doc_title_text: HTMLInputElement = document.getElementById("doc-title") as HTMLInputElement;
+export var edge_label_input = document.getElementById("edge-label") as HTMLInputElement;
 var docs_select: HTMLSelectElement = document.getElementById("docs-select") as HTMLSelectElement;
 var menu_span = document.getElementById("menu-span") as HTMLSpanElement;
 
-var click_cnt = 0;   
+export var click_cnt = 0;   
 
-var cur_doc = new Doc(0, "", [] );
-var cur_block : TextBlock | null = null;
-var cur_edge  : Edge | null = null;
-var clicked = false; 
-var from_block : TextBlock | null = null;
-var dom_list : (HTMLElement | SVGSVGElement)[] = [];
+export var cur_doc = new Doc(0, "", [] );
+export var cur_block : TextBlock | null = null;
+export var cur_edge  : Edge | null = null;
 var timeout_id : number | null = null;
 
 var sys_inf: any = { "ver": 4 };
@@ -58,7 +54,7 @@ block_text.addEventListener("keypress", function(){
 
         new TextBlock(cur_doc, [], lines, null);
 
-        logic_graph.show_doc(cur_doc);
+        show_doc(cur_doc);
     }
 });
 
@@ -69,7 +65,7 @@ block_text.addEventListener("blur", function(){
 
             cur_block.lines = block_text.value.split('\n');
 
-            logic_graph.show_doc(cur_doc);
+            show_doc(cur_doc);
         }
 
         cur_block = null;
@@ -83,7 +79,7 @@ edge_label_input.addEventListener("blur", function(){
     }
     cur_edge.label = edge_label_input.value.trim();
 
-    logic_graph.show_doc(cur_doc);
+    show_doc(cur_doc);
 });
 
 docs_select.addEventListener("change", function(){
@@ -95,7 +91,7 @@ docs_select.addEventListener("change", function(){
     
     cur_doc = logic_graph.docs[idx];
 
-    logic_graph.show_doc(cur_doc);
+    show_doc(cur_doc);
 });
 
 function make_span(text: string){
@@ -158,7 +154,7 @@ menu_span.addEventListener("contextmenu", function(ev){
             return function() {
                 console.log(x.title);
                 new TextBlock(cur_doc, [], [x.title], doc.id);
-                logic_graph.show_doc(cur_doc);
+                show_doc(cur_doc);
             };
         }(doc);
 
@@ -174,7 +170,7 @@ menu_span.addEventListener("contextmenu", function(ev){
 });
 
 
-function msg(txt : string){
+export function msg(txt : string){
     if(timeout_id != null){
         clearTimeout(timeout_id);
     }
@@ -187,13 +183,6 @@ function msg(txt : string){
             timeout_id = null;
         }
     }(txt), 3000);
-}
-
-function clear_dom(){
-    for(let dom of dom_list){
-        dom.parentNode!.removeChild(dom);
-    }
-    dom_list = [];
 }
 
 function restore_doc(doc_obj:any) : Doc {
@@ -247,7 +236,7 @@ function tab(indent: number){
     return " ".repeat(4 * indent);
 }
 
-class OrderedMap<K, V> {
+export class OrderedMap<K, V> {
     map: any;
     keys: K[];
     constructor(){
@@ -275,239 +264,7 @@ class OrderedMap<K, V> {
     }
 }    
 
-var padding = 10;
-
-function add_node_rect(svg1: SVGSVGElement, nd: any, block: TextBlock){
-    var rc = document.createElementNS("http://www.w3.org/2000/svg","rect");
-    rc.setAttribute("x", "" + (nd.x - nd.width/2));
-    rc.setAttribute("y", "" + (nd.y - nd.height/2));
-    rc.setAttribute("width", nd.width);
-    rc.setAttribute("height", nd.height);
-    rc.setAttribute("fill", "cornsilk");
-    if(block.link == null){
-
-        rc.setAttribute("stroke", "green");
-    }
-    else{
-
-        rc.setAttribute("stroke", "blue");
-    }
-    svg1.appendChild(rc);
-}
-
-function onclick_path(temp: [TextBlock, TextBlock]) {
-
-    return function(){
-        (window.event as MouseEvent).stopPropagation();
-
-        var blc1 = temp[0];
-        var blc2 = temp[1];
-
-        var input_idx = blc2.input_src_ids().indexOf(blc1.id);
-        console.assert(input_idx != -1);
-        cur_edge = blc2.inputs[input_idx];
-
-        if (clicked) {
-            clicked = false;
-
-            console.log("double click!! " + (click_cnt++) + " " + temp);
-            blc2.inputs.splice(input_idx, 1);
-
-            // block_text.value = temp.lines.join("\n");
-    
-            logic_graph.show_doc(cur_doc);
-
-            return;
-        }
-    
-        clicked = true;
-        setTimeout(function () {
-            if (clicked) {
-                console.log("single click! " + (click_cnt++));
-                edge_label_input.value = cur_edge!.label;
-            }
-    
-            clicked = false;
-        }, 300);
-    }
-}
-
-function add_edge(svg1: SVGSVGElement, block1: TextBlock, block2: TextBlock, ed: any){
-    var path = document.createElementNS("http://www.w3.org/2000/svg","path");
-
-    var d: string = ""; 
-
-    if(ed.points.length == 2){
-
-        for(let [i, pnt] of ed.points.entries()){
-            if(i == 0){
-    
-                d = `M ${pnt.x},${pnt.y}`;
-            }
-            else{
-    
-                d += ` L${pnt.x},${pnt.y}`;
-            }
-        }
-    }
-    else{
-
-        for(let [i, pnt] of ed.points.entries()){
-            if(i == 0){
-    
-                d = `M ${pnt.x},${pnt.y} Q`;
-            }
-            else{
-    
-                d += ` ${pnt.x},${pnt.y}`;
-            }
-        }
-    }
-    path.setAttribute("fill", "transparent");
-    path.setAttribute("stroke", "red");
-    path.setAttribute("stroke-width", "3px");
-    path.setAttribute("d", d);
-
-    path.addEventListener("click", (onclick_path([block1, block2])));
-
-    svg1.appendChild(path);
-}    
-
-function get_size(ele: HTMLDivElement){
-    var spans = ele.getElementsByTagName("span");
-
-    var min_x = Number.MAX_VALUE, min_y = Number.MAX_VALUE;
-    var max_x = 0, max_y = 0;
-    for(let span of spans){
-        if(span.className == "MathJax_Preview" || span.className == "MJX_Assistive_MathML MJX_Assistive_MathML_Block"){
-            continue;
-        }
-        var rc = span.getBoundingClientRect();
-        // console.log(`${span.className} rc:${rc.x},${rc.y},${rc.width},${rc.height}, ${span.innerText.replace('\n', ' ')}`);
-        if(span.className == "MathJax_SVG"){
-
-            max_x = Math.max(max_x, rc.width);
-        }
-        else{
-
-            min_x = Math.min(min_x, rc.left);
-            max_x = Math.max(max_x, rc.right);
-        }
-        min_y = Math.min(min_y, rc.top);
-        max_y = Math.max(max_y, rc.bottom);
-    }
-    if(min_x == Number.MAX_VALUE){
-        min_x = 0;
-    }
-
-    return [max_x - min_x, max_y - min_y]
-}
-
-function onclick_block(temp: TextBlock) {
-
-    return function(){
-        var ev = window.event as KeyboardEvent;
-
-        ev.stopPropagation();
-
-        if(ev.ctrlKey){
-
-            if(from_block == null){
-
-                msg("接続先のブロックをクリックしてください。");
-                from_block = temp;
-            }
-            else{
-
-                if(temp.input_src_ids().includes(from_block.id)){
-
-                    msg("接続済みです。");
-                }
-                else{
-
-                    msg("ブロックを接続しました。" + from_block.id + "->" + temp.id);
-                    temp.inputs.push(new Edge(from_block.id, temp.id, ""));
-                }
-                from_block = null;
-
-                logic_graph.show_doc(cur_doc);
-            }
-        }
-        else{
-
-            console.log("click block " + (click_cnt++));
-            cur_block = temp;
-            block_text.value = cur_block.lines.join("\n");
-        }
-    }
-}
-
-function ontypeset(id_blocks: OrderedMap<string, TextBlock>, svg1: SVGSVGElement){
-    // Create a new directed graph 
-    var g = new dagre.graphlib.Graph();
-
-    // Set an object for the graph label
-    g.setGraph({});
-
-    // Default to assigning a new object as a label for each new edge.
-    g.setDefaultEdgeLabel(function() { return {}; });
-
-    for(let blc of id_blocks.values()){
-        var width, height;
-        [width, height] = get_size(blc.ele!);
-        blc.ele!.style.width  = (width + 2 * padding) + "px";
-        blc.ele!.style.height = (height + 2 * padding) + "px";
-
-        g.setNode(blc.id,    { width: width + 2 * padding, height: height + 2 * padding });   // label: ele.id,  
-
-        for(let id of blc.input_src_ids()){
-
-            g.setEdge(id, blc.id);
-        }
-    }
-
-    dagre.layout(g);
-    
-    var max_x = 0, max_y = 0;
-    g.nodes().forEach(function(id:string) {
-        var nd = g.node(id);
-        max_x = Math.max(max_x, nd.x + nd.width / 2);
-        max_y = Math.max(max_y, nd.y + nd.height/ 2);
-    });
-
-    svg1.style.width  = max_x + "px";
-    svg1.style.height = max_y + "px";
-
-
-    var rc1 = svg1.getBoundingClientRect() as DOMRect;
-    g.nodes().forEach(function(id:string) {
-        var nd = g.node(id);
-
-        var block = id_blocks.get(id);
-        var ele = block.ele!;
-    
-        ele.style.position = "absolute";
-        ele.style.left = `${window.scrollX + rc1.x + nd.x - nd.width /2 + padding}px`
-        ele.style.top  = `${window.scrollY + rc1.y + nd.y - nd.height/2 + padding}px`
-
-        ele.addEventListener("click", (onclick_block(block)));
-            
-        add_node_rect(svg1, nd, block);
-    });
-
-
-    g.edges().forEach(function(edge_id:any) {
-        var blc1 = id_blocks.get(edge_id["v"]);
-        var blc2 = id_blocks.get(edge_id["w"]);
-
-        var ed = g.edge(edge_id);
-        add_edge(svg1, blc1, blc2, ed);
-    });         
-
-    logic_graph.pending = false;
-}
-
-class Edge {
+export class Edge {
     src_id: string;
     dst_id: string;
     label: string;
@@ -523,7 +280,7 @@ class Edge {
     }
 }
 
-class TextBlock {
+export class TextBlock {
     parent: any;
     id: string;
     inputs: Edge[];
@@ -634,7 +391,7 @@ class TextBlock {
     }
 }
 
-class LogicGraph{
+export class LogicGraph{
     pending: boolean;
     docs: Doc[];
     user: any;
@@ -645,7 +402,7 @@ class LogicGraph{
         this.user = null;
     }
 
-    new_doc(){
+    new_doc=()=>{
         var max_id = Math.max(... this.docs.map(x => x.id));
         cur_doc = new Doc(max_id + 1, "タイトル", []);
 
@@ -658,39 +415,10 @@ class LogicGraph{
         docs_select.appendChild(opt);
         docs_select.selectedIndex = docs_select.options.length - 1;
 
-        logic_graph.show_doc(cur_doc);    
+        show_doc(cur_doc);    
     }
 
-    show_doc(doc: Doc){
-        clear_dom();
-
-        doc_title_text.value = cur_doc.title;
-
-        var svg1 = document.createElementNS("http://www.w3.org/2000/svg","svg");
-        svg1.style.backgroundColor = "wheat";
-        svg1.style.width = "1px";
-        svg1.style.height = "1px";
-        svg1.addEventListener("click", function(){
-            console.log("SVG clicked " + (click_cnt++));
-        })
-        document.body.appendChild(svg1);
-
-        var id_blocks = new OrderedMap();
-
-        for(let block of doc.blocks){
-
-            id_blocks.set(block.id, block);
-
-            block.make();
-        }
-
-        MathJax.Hub.Queue(["Typeset",MathJax.Hub]);
-        MathJax.Hub.Queue([ontypeset, id_blocks, svg1]);
-
-        dom_list.push(svg1);
-    }
-
-    read_docs(){
+    read_docs = ()=>{
         while (docs_select.options.length > 0) {                
             docs_select.remove(0);
         }
@@ -721,7 +449,7 @@ class LogicGraph{
         });            
     }
 
-    save_docs(){
+    save_docs=()=>{
 
         if(this.user == null){
             msg("ログインしていません。");
@@ -754,49 +482,53 @@ class LogicGraph{
 
 var db = firebase.firestore();
 
-db.collection('sys').doc("0").get()
-.then(function(obj:any) {
-    if (obj.exists) {
-        sys_inf = obj.data();
-        console.log("SYS inf:" + sys_inf.ver);
-    } else {
-        // doc.data() will be undefined in this case
-        console.log("No such document!");
-    }
-})
-.catch(function(error:any) {
-    console.log("Error getting sys-inf:", error);
-});    
+export var logic_graph : LogicGraph;
 
-firebase.auth().onAuthStateChanged(function(user: any) {
-    if (user) {
-        // User is signed in.
-        console.log(`ログイン ${user.uid}`);
+export function init_graph(){
+    logic_graph = new LogicGraph();
 
-        logic_graph.user = user;
+    document.getElementById("new-doc-btn")!.addEventListener("click", logic_graph.new_doc);
+    document.getElementById("read-doc-btn")!.addEventListener("click", logic_graph.read_docs);
+    document.getElementById("save-doc-btn")!.addEventListener("click", logic_graph.save_docs);
 
-        var user1 = firebase.auth().currentUser;
-
-        if (user1) {
+    db.collection('sys').doc("0").get()
+    .then(function(obj:any) {
+        if (obj.exists) {
+            sys_inf = obj.data();
+            console.log("SYS inf:" + sys_inf.ver);
+        } else {
+            // doc.data() will be undefined in this case
+            console.log("No such document!");
+        }
+    })
+    .catch(function(error:any) {
+        console.log("Error getting sys-inf:", error);
+    });    
+    
+    firebase.auth().onAuthStateChanged(function(user: any) {
+        if (user) {
             // User is signed in.
-            console.log(user1);
-        } 
-        else {
-            // No user is signed in.
+            console.log(`ログイン ${user.uid}`);
+    
+            logic_graph.user = user;
+    
+            var user1 = firebase.auth().currentUser;
+    
+            if (user1) {
+                // User is signed in.
+                console.log(user1);
+            } 
+            else {
+                // No user is signed in.
+                console.log("ログアウト");
+            }
+    
+        } else {
+            // User is signed out.
+            // ...
             console.log("ログアウト");
         }
+    });
 
-    } else {
-        // User is signed out.
-        // ...
-        console.log("ログアウト");
-    }
-});
-
-var logic_graph : LogicGraph;
-
-export function graph_closure(){
-    logic_graph = new LogicGraph();
-    return logic_graph;
 }
 }
