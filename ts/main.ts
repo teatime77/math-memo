@@ -29,6 +29,7 @@ export var cur_doc = new Doc(0, "", [] );
 export var cur_block : TextBlock | null = null;
 export var cur_edge  : Edge | null = null;
 var timeout_id : number | null = null;
+var from_block : TextBlock | null = null;
 
 var sys_inf: any = { "ver": 4 };
 
@@ -77,6 +78,7 @@ edge_label_input.addEventListener("blur", function(){
         return;
     }
     cur_edge.label = edge_label_input.value.trim();
+    cur_edge = null;
 
     show_doc(cur_doc);
 });
@@ -93,10 +95,24 @@ docs_select.addEventListener("change", function(){
     show_doc(cur_doc);
 });
 
+export function get_block(id: string){
+    return cur_doc.blocks.find(x => x.id == id);
+}
+
 function make_span(text: string){
     var span = document.createElement("span");
     span.innerHTML = text;
     return span;        
+}
+
+function make_div(text: string){
+    var ele = document.createElement("div");
+    ele.innerHTML = make_html_lines(text);
+    document.body.appendChild(ele);
+    
+    dom_list.push(ele);
+
+    return ele;
 }
 
 function make_button(label: string, fnc: any){
@@ -246,15 +262,23 @@ export class Edge {
     src_id: string;
     dst_id: string;
     label: string;
+    label_ele: HTMLDivElement | null;
 
     constructor(src_id: string, dst_id: string, label: string){
         this.src_id = src_id;
         this.dst_id = dst_id;
         this.label = label;
+        this.label_ele = null;
     }
 
     to_json(){
         return { "src_id": this.src_id, "dst_id": this.dst_id, "label": this.label };
+    }
+
+
+    onclick_edge_label=()=>{
+        cur_edge = this;
+        edge_label_input.value = this.label;
     }
 }
 
@@ -285,16 +309,55 @@ export class TextBlock {
         return this.inputs.map(x => x.src_id);
     }
 
+    onclick_block=()=>{
+        var ev = window.event as KeyboardEvent;
+
+        ev.stopPropagation();
+
+        if(ev.ctrlKey){
+
+            if(from_block == null){
+
+                msg("接続先のブロックをクリックしてください。");
+                from_block = this;
+            }
+            else{
+
+                if(this.input_src_ids().includes(from_block.id)){
+
+                    msg("接続済みです。");
+                }
+                else{
+
+                    msg("ブロックを接続しました。" + from_block.id + "->" + this.id);
+                    this.inputs.push(new Edge(from_block.id, this.id, ""));
+                }
+                from_block = null;
+
+                show_doc(cur_doc);
+            }
+        }
+        else{
+
+            console.log("click block " + (click_cnt++));
+            cur_block = this;
+            block_text.value = cur_block.text;
+        }
+    }        
 
     /*
         HTML要素を作る。
     */
     make(){
-        this.ele = document.createElement("div");
-        this.ele.innerHTML = make_html_lines(this.text);
-        document.body.appendChild(this.ele);
-        
-        dom_list.push(this.ele);
+        this.ele = make_div(this.text);
+        this.ele.addEventListener("click", this.onclick_block);
+
+        for(let edge of this.inputs){
+            if(edge.label != ""){
+                edge.label_ele = make_div(edge.label);
+                edge.label_ele.addEventListener("click", edge.onclick_edge_label);
+            }
+        }
     }
 }
 

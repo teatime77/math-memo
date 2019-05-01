@@ -5,9 +5,7 @@ declare var dagre:any;
 
 var padding = 10;
 var clicked = false; 
-var from_block : TextBlock | null = null;
 export var dom_list : (HTMLElement | SVGSVGElement)[] = [];
-
 
 function get_indent(line: string) : [number, string]{
     var indent = 0;
@@ -96,31 +94,38 @@ export function make_html_lines(text: string){
     return html_lines.join("\n");
 }
 
-function add_node_rect(svg1: SVGSVGElement, nd: any, block: TextBlock){
+function add_node_rect(svg1: SVGSVGElement, nd: any, block: TextBlock|null, edge: Edge|null){
     var rc = document.createElementNS("http://www.w3.org/2000/svg","rect");
     rc.setAttribute("x", "" + (nd.x - nd.width/2));
     rc.setAttribute("y", "" + (nd.y - nd.height/2));
     rc.setAttribute("width", nd.width);
     rc.setAttribute("height", nd.height);
     rc.setAttribute("fill", "cornsilk");
-    if(block.link == null){
+    if(block != null){
 
-        rc.setAttribute("stroke", "green");
+        if(block.link == null){
+
+            rc.setAttribute("stroke", "green");
+        }
+        else{
+    
+            rc.setAttribute("stroke", "blue");
+        }
     }
     else{
 
-        rc.setAttribute("stroke", "blue");
+            rc.setAttribute("stroke", "red");
     }
     svg1.appendChild(rc);
 }
 
-function onclick_edge(temp: [TextBlock, TextBlock]) {
+function onclick_edge(edge: Edge) {
 
     return function(){
         (window.event as MouseEvent).stopPropagation();
 
-        var blc1 = temp[0];
-        var blc2 = temp[1];
+        var blc1 = get_block(edge.src_id)!;
+        var blc2 = get_block(edge.dst_id)!;
 
         var input_idx = blc2.input_src_ids().indexOf(blc1.id);
         console.assert(input_idx != -1);
@@ -129,7 +134,7 @@ function onclick_edge(temp: [TextBlock, TextBlock]) {
         if (clicked) {
             clicked = false;
 
-            console.log("double click!! " + (click_cnt++) + " " + temp);
+            console.log("double click!! " + (click_cnt++));
             blc2.inputs.splice(input_idx, 1);
     
             show_doc(cur_doc);
@@ -149,7 +154,7 @@ function onclick_edge(temp: [TextBlock, TextBlock]) {
     }
 }
 
-function add_edge(svg1: SVGSVGElement, block1: TextBlock, block2: TextBlock, ed: any){
+function add_edge(svg1: SVGSVGElement, ed: any){
     var path = document.createElementNS("http://www.w3.org/2000/svg","path");
 
     var d: string = ""; 
@@ -185,7 +190,7 @@ function add_edge(svg1: SVGSVGElement, block1: TextBlock, block2: TextBlock, ed:
     path.setAttribute("stroke-width", "3px");
     path.setAttribute("d", d);
 
-    path.addEventListener("click", (onclick_edge([block1, block2])));
+    path.addEventListener("click", (onclick_edge(ed.edge as Edge)));
 
     svg1.appendChild(path);
 }    
@@ -220,43 +225,13 @@ function get_size(ele: HTMLDivElement){
     return [max_x - min_x, max_y - min_y]
 }
 
-function onclick_block(temp: TextBlock) {
+function make_node(g: any, ele: HTMLDivElement, id:string, block: TextBlock|null, edge: Edge|null){
+    var width, height;
+    [width, height] = get_size(ele);
+    ele!.style.width  = (width + 2 * padding) + "px";
+    ele!.style.height = (height + 2 * padding) + "px";
 
-    return function(){
-        var ev = window.event as KeyboardEvent;
-
-        ev.stopPropagation();
-
-        if(ev.ctrlKey){
-
-            if(from_block == null){
-
-                msg("接続先のブロックをクリックしてください。");
-                from_block = temp;
-            }
-            else{
-
-                if(temp.input_src_ids().includes(from_block.id)){
-
-                    msg("接続済みです。");
-                }
-                else{
-
-                    msg("ブロックを接続しました。" + from_block.id + "->" + temp.id);
-                    temp.inputs.push(new Edge(from_block.id, temp.id, ""));
-                }
-                from_block = null;
-
-                show_doc(cur_doc);
-            }
-        }
-        else{
-
-            console.log("click block " + (click_cnt++));
-            cur_block = temp;
-            block_text.value = cur_block.text;
-        }
-    }
+    g.setNode(id, { ele: ele, block: block, edge: edge, width: width + 2 * padding, height: height + 2 * padding });   // label: ele.id,  
 }
 
 function ontypeset(id_blocks: OrderedMap<string, TextBlock>, svg1: SVGSVGElement){
@@ -270,16 +245,22 @@ function ontypeset(id_blocks: OrderedMap<string, TextBlock>, svg1: SVGSVGElement
     g.setDefaultEdgeLabel(function() { return {}; });
 
     for(let blc of id_blocks.values()){
-        var width, height;
-        [width, height] = get_size(blc.ele!);
-        blc.ele!.style.width  = (width + 2 * padding) + "px";
-        blc.ele!.style.height = (height + 2 * padding) + "px";
+        make_node(g, blc.ele!, blc.id, blc, null);
 
-        g.setNode(blc.id,    { width: width + 2 * padding, height: height + 2 * padding });   // label: ele.id,  
+        for(let edge of blc.inputs){
 
-        for(let id of blc.input_src_ids()){
+            if(edge.label == ""){
 
-            g.setEdge(id, blc.id);
+                g.setEdge(edge.src_id, blc.id, { edge: edge });
+            }
+            else{
+
+                console.assert(edge.dst_id == blc.id);
+                var label_id = `${edge.src_id}-${edge.dst_id}`
+                g.setEdge(edge.src_id, label_id, { edge: edge });
+                make_node(g, edge.label_ele!, label_id, null, edge);
+                g.setEdge(label_id, edge.dst_id, { edge: edge });
+            }
         }
     }
 
@@ -300,25 +281,19 @@ function ontypeset(id_blocks: OrderedMap<string, TextBlock>, svg1: SVGSVGElement
     g.nodes().forEach(function(id:string) {
         var nd = g.node(id);
 
-        var block = id_blocks.get(id);
-        var ele = block.ele!;
+        var ele = nd.ele as HTMLDivElement;
     
         ele.style.position = "absolute";
         ele.style.left = `${window.scrollX + rc1.x + nd.x - nd.width /2 + padding}px`
         ele.style.top  = `${window.scrollY + rc1.y + nd.y - nd.height/2 + padding}px`
-
-        ele.addEventListener("click", (onclick_block(block)));
             
-        add_node_rect(svg1, nd, block);
+        add_node_rect(svg1, nd, nd.block, nd.edge);
     });
 
 
     g.edges().forEach(function(edge_id:any) {
-        var blc1 = id_blocks.get(edge_id["v"]);
-        var blc2 = id_blocks.get(edge_id["w"]);
-
         var ed = g.edge(edge_id);
-        add_edge(svg1, blc1, blc2, ed);
+        add_edge(svg1, ed);
     });         
 
     logic_graph.pending = false;
