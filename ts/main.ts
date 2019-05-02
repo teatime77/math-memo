@@ -44,7 +44,23 @@ doc_title_text.addEventListener("blur", function(){
 });
 
 document.body.addEventListener("click", function(){
-    console.log("body clicked " + (click_cnt++));
+    console.log("body clicked " + cur_doc.blocks.length);
+});
+
+document.body.addEventListener("blur", function(){
+    console.log("body blur ");
+});
+
+document.body.addEventListener("keypress", function(){
+    console.log("body keypress ");
+});
+
+document.body.addEventListener("change", function(){
+    console.log("body change ");
+});
+
+document.body.addEventListener("contextmenu", function(){
+    console.log("body contextmenu ");
 });
 
 block_text.addEventListener("keypress", function(){
@@ -52,7 +68,7 @@ block_text.addEventListener("keypress", function(){
 
         new TextBlock(cur_doc, [], block_text.value, null);
 
-        block_text.value = "";
+        set_cur_block(null);
 
         show_doc(cur_doc);
     }
@@ -95,8 +111,72 @@ docs_select.addEventListener("change", function(){
     show_doc(cur_doc);
 });
 
+function array_remove<T>(arr:T[], value:T){
+    var i = arr.indexOf(value);
+    console.assert(i != -1);
+    arr.splice(i, 1);
+}
+
 export function get_block(id: string){
     return cur_doc.blocks.find(x => x.id == id);
+}
+
+
+function set_cur_edge(edge: Edge|null){
+    if(cur_edge != null){
+        if(cur_edge.rect != null){
+
+            cur_edge.rect!.setAttribute("stroke", "navy");
+        }
+        for(let path of cur_edge.paths){
+            path.setAttribute("stroke", "navy");
+        }
+
+        edge_label_input.value = "";
+    }
+
+    cur_edge = edge;
+
+    if(cur_edge != null){
+        if(cur_edge.rect != null){
+
+            cur_edge.rect!.setAttribute("stroke", "red");
+        }
+        for(let path of cur_edge.paths){
+            path.setAttribute("stroke", "red");
+        }
+
+        edge_label_input.value = cur_edge.label;
+    }
+}
+
+function set_cur_block(block: TextBlock|null){
+    if(cur_block != null){
+        if(cur_block.rect != null){
+
+            if(cur_block.link == null){
+
+                cur_block.rect!.setAttribute("stroke", "green");
+            }
+            else{
+        
+                cur_block.rect!.setAttribute("stroke", "blue");
+            }
+        }
+
+        block_text.value = "";
+    }
+
+    cur_block = block;
+
+    if(cur_block != null){
+        if(cur_block.rect != null){
+
+            cur_block.rect!.setAttribute("stroke", "red");
+        }
+
+        block_text.value = cur_block.text;
+    }
 }
 
 function make_span(text: string){
@@ -263,6 +343,9 @@ export class Edge {
     dst_id: string;
     label: string;
     label_ele: HTMLDivElement | null;
+    clicked = false; 
+    rect: SVGRectElement|null = null;
+    paths: SVGPathElement[] = [];
 
     constructor(src_id: string, dst_id: string, label: string){
         this.src_id = src_id;
@@ -275,10 +358,36 @@ export class Edge {
         return { "src_id": this.src_id, "dst_id": this.dst_id, "label": this.label };
     }
 
+    onclick_edge=()=>{
+        (window.event as MouseEvent).stopPropagation();
+
+        if (this.clicked) {
+            this.clicked = false;
+
+            console.log("double click!! " + (click_cnt++));
+
+            var dst_blc = get_block(this.dst_id)!;
+            array_remove(dst_blc.inputs, this);
+    
+            show_doc(cur_doc);
+
+            return;
+        }
+    
+        this.clicked = true;
+        setTimeout(()=>{
+            if (this.clicked) {
+                console.log("single click! " + (click_cnt++));
+
+                set_cur_edge(this);
+            }
+    
+            this.clicked = false;
+        }, 300);
+    }
 
     onclick_edge_label=()=>{
-        cur_edge = this;
-        edge_label_input.value = this.label;
+        set_cur_edge(this);
     }
 }
 
@@ -289,6 +398,7 @@ export class TextBlock {
     text: string;
     link : number | null;
     ele: HTMLDivElement | null;
+    rect: SVGRectElement|null = null;
     
     constructor(parent: Doc, inputs: Edge[], text: string, link: number | null){
         this.parent = parent;
@@ -340,8 +450,9 @@ export class TextBlock {
         else{
 
             console.log("click block " + (click_cnt++));
-            cur_block = this;
-            block_text.value = cur_block.text;
+            set_cur_block(this);
+
+            set_cur_edge(null);
         }
     }        
 

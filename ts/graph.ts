@@ -4,7 +4,6 @@ declare var MathJax:any;
 declare var dagre:any;
 
 var padding = 10;
-var clicked = false; 
 export var dom_list : (HTMLElement | SVGSVGElement)[] = [];
 
 function get_indent(line: string) : [number, string]{
@@ -114,45 +113,13 @@ function add_node_rect(svg1: SVGSVGElement, nd: any, block: TextBlock|null, edge
     }
     else{
 
-            rc.setAttribute("stroke", "red");
+            rc.setAttribute("stroke", "navy");
     }
     svg1.appendChild(rc);
+
+    return rc;
 }
 
-function onclick_edge(edge: Edge) {
-
-    return function(){
-        (window.event as MouseEvent).stopPropagation();
-
-        var blc1 = get_block(edge.src_id)!;
-        var blc2 = get_block(edge.dst_id)!;
-
-        var input_idx = blc2.input_src_ids().indexOf(blc1.id);
-        console.assert(input_idx != -1);
-        cur_edge = blc2.inputs[input_idx];
-
-        if (clicked) {
-            clicked = false;
-
-            console.log("double click!! " + (click_cnt++));
-            blc2.inputs.splice(input_idx, 1);
-    
-            show_doc(cur_doc);
-
-            return;
-        }
-    
-        clicked = true;
-        setTimeout(function () {
-            if (clicked) {
-                console.log("single click! " + (click_cnt++));
-                edge_label_input.value = cur_edge!.label;
-            }
-    
-            clicked = false;
-        }, 300);
-    }
-}
 
 function add_edge(svg1: SVGSVGElement, ed: any){
     var path = document.createElementNS("http://www.w3.org/2000/svg","path");
@@ -186,11 +153,14 @@ function add_edge(svg1: SVGSVGElement, ed: any){
         }
     }
     path.setAttribute("fill", "transparent");
-    path.setAttribute("stroke", "red");
+    path.setAttribute("stroke", "navy");
     path.setAttribute("stroke-width", "3px");
     path.setAttribute("d", d);
 
-    path.addEventListener("click", (onclick_edge(ed.edge as Edge)));
+    var edge = ed.edge as Edge;
+    edge.paths.push(path);
+
+    path.addEventListener("click", edge.onclick_edge);
 
     svg1.appendChild(path);
 }    
@@ -249,6 +219,9 @@ function ontypeset(id_blocks: OrderedMap<string, TextBlock>, svg1: SVGSVGElement
 
         for(let edge of blc.inputs){
 
+            edge.rect = null;
+            edge.paths = [];
+
             if(edge.label == ""){
 
                 g.setEdge(edge.src_id, blc.id, { edge: edge });
@@ -287,7 +260,14 @@ function ontypeset(id_blocks: OrderedMap<string, TextBlock>, svg1: SVGSVGElement
         ele.style.left = `${window.scrollX + rc1.x + nd.x - nd.width /2 + padding}px`
         ele.style.top  = `${window.scrollY + rc1.y + nd.y - nd.height/2 + padding}px`
             
-        add_node_rect(svg1, nd, nd.block, nd.edge);
+        var rc = add_node_rect(svg1, nd, nd.block, nd.edge);
+        if(nd.block != null){
+
+            nd.block.rect = rc;
+        }
+        else{
+            (nd.edge as Edge).rect = rc;
+        }
     });
 
 
