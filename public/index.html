@@ -44,8 +44,8 @@ firebase.initializeApp(config);
 <script type="text/javascript">
 var exports = {};
 </script>
-<script type="text/javascript" src="js/graph.js?v=45" defer></script>
-<script type="text/javascript" src="js/main.js?v=45" defer></script>
+<script type="text/javascript" src="js/graph.js?v=66" defer></script>
+<script type="text/javascript"  src="js/main.js?v=66" defer></script>
 <script type="text/javascript">
 
 function body_onload(){
@@ -55,10 +55,18 @@ function body_onload(){
 </script>
 
 <style type="text/css">
-ul.popup {
+.popup_label {
+    margin: 0px;
+    padding: 0px;
+}
+.popup_ul {
     list-style: none;
-    padding-left: 20px; 
+    padding-left: 0px; 
+    margin: 0px;
     /* position: absolute;    */
+}
+.popup_li {
+    margin-left: 10px;
 }
 
 path {
@@ -105,5 +113,8 @@ $$
         </td>
     </tr>
 </table>
+
+<div id="popup-menu" style="position: absolute; left: 10px; top: 20px; z-index: 100; background-color: white; border-width: 2; border-style: outset; display: none; padding: 0px; " >
+</div>
 </body>
 </html>

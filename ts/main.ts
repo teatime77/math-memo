@@ -22,6 +22,7 @@ export var doc_title_text: HTMLInputElement = document.getElementById("doc-title
 export var edge_label_input = document.getElementById("edge-label") as HTMLInputElement;
 var docs_select: HTMLSelectElement = document.getElementById("docs-select") as HTMLSelectElement;
 var menu_span = document.getElementById("menu-span") as HTMLSpanElement;
+var popup_menu = document.getElementById("popup-menu") as HTMLDivElement;
 
 export var click_cnt = 0;   
 
@@ -45,6 +46,10 @@ doc_title_text.addEventListener("blur", function(){
 
 document.body.addEventListener("click", function(){
     console.log("body clicked " + cur_doc.blocks.length);
+    if(popup_menu.style.display != "none"){
+
+        popup_menu.style.display = "none";
+    }
 });
 
 document.body.addEventListener("blur", function(){
@@ -59,8 +64,51 @@ document.body.addEventListener("change", function(){
     console.log("body change ");
 });
 
+function make_html_map(){
+    var map = new Map();
+
+    for(let block of cur_doc.blocks){
+        if(block.ele != null){
+
+            map.set(block.ele, block);
+        }
+        for(let edge of block.inputs){
+            if(edge.rect != null){
+
+                map.set(edge.rect, edge);
+            }
+            for(let path of edge.paths){
+                map.set(path, edge);
+            }
+        }
+    }
+
+    return map;
+}
+
 document.body.addEventListener("contextmenu", function(){
-    console.log("body contextmenu ");
+    var ev = window.event as MouseEvent;
+    var src = ev.srcElement as any;
+    var map = make_html_map();
+
+    for(var ele =  src; ele != document.body; ele = ele!.parentNode){
+        if(map.has(ele)){
+
+            var obj = map.get(ele);
+            console.log(`body menu ${src} ${obj.constructor.name} pos:${ev.x} ${ev.y} `);
+
+            if(obj.constructor.name == "TextBlock"){
+
+                ev.preventDefault();
+                show_menu(ev, [
+                    ["削除", (obj as TextBlock).del_block ]
+                ]);
+            }
+        
+            return;
+        }
+    }
+    console.log("body contextmenu " + src);
 });
 
 block_text.addEventListener("keypress", function(){
@@ -113,8 +161,14 @@ docs_select.addEventListener("change", function(){
 
 function array_remove<T>(arr:T[], value:T){
     var i = arr.indexOf(value);
-    console.assert(i != -1);
-    arr.splice(i, 1);
+    if(i == -1){
+        return false;
+    }
+    else{
+
+        arr.splice(i, 1);
+        return true;
+    }
 }
 
 export function get_block(id: string){
@@ -203,13 +257,19 @@ function make_button(label: string, fnc: any){
     return btn;
 }
 
-function make_sub_menu(parent: HTMLElement, label:string, sub_menu: any[]){
-    parent.appendChild( make_span(label) );
+function make_sub_menu(parent: HTMLElement, label:string|null, sub_menu: any[]){
+    if(label != null){
+
+        var span = make_span(label);
+        span.className = "popup_label";
+        parent.appendChild( span );
+    }
 
     var ul = document.createElement("ul");
-    ul.className = "popup";
+    ul.className = "popup_ul";
     for(let [label, fnc] of sub_menu){
         var li = document.createElement("li");
+        li.className = "popup_li";
         if(Array.isArray(fnc)){
 
             make_sub_menu(li, label, fnc);
@@ -224,17 +284,13 @@ function make_sub_menu(parent: HTMLElement, label:string, sub_menu: any[]){
     parent.appendChild( ul );
 }
 
-function show_menu(ev:MouseEvent, label:string, menu_defs: [string, any][]){
-    var dlg = document.createElement("dialog") as HTMLDialogElement;
-    dlg.style.position = "absolute";
-    dlg.style.left = ev.x + "px";
-    dlg.style.top  = ev.y + "px";
-    dlg.addEventListener("click", ()=>dlg.close());
+function show_menu(ev:MouseEvent, menu_defs: [string, any][]){
+    popup_menu.innerHTML = "";
+    make_sub_menu(popup_menu, null, menu_defs);
 
-    make_sub_menu(dlg, label, menu_defs);
-
-    document.body.appendChild(dlg);
-    dlg.showModal();
+    popup_menu.style.left = ev.x + "px";
+    popup_menu.style.top  = ev.y + "px";
+    popup_menu.style.display = "inline-block";
 }
 
 menu_span.addEventListener("contextmenu", function(ev){
@@ -256,7 +312,7 @@ menu_span.addEventListener("contextmenu", function(ev){
         docs_menu.push([ doc.title, fnc ]);
     }
 
-    show_menu(ev, "メニュー", [
+    show_menu(ev, [
         [ "コピー", docs_menu ], 
         ["ファイル", ()=>{ console.log("ファイル"); }],
         ["編集", ()=>{ console.log("編集"); }],
@@ -367,7 +423,8 @@ export class Edge {
             console.log("double click!! " + (click_cnt++));
 
             var dst_blc = get_block(this.dst_id)!;
-            array_remove(dst_blc.inputs, this);
+            var removed = array_remove(dst_blc.inputs, this);
+            console.assert(removed);
     
             show_doc(cur_doc);
 
@@ -418,6 +475,18 @@ export class TextBlock {
     input_src_ids(){
         return this.inputs.map(x => x.src_id);
     }
+
+
+    del_block = ()=>{
+        for(let blc of cur_doc.blocks){
+            blc.inputs = blc.inputs.filter(x => x.src_id != this.id);
+        }
+    
+        array_remove(cur_doc.blocks, this);
+    
+        show_doc(cur_doc);
+    }
+    
 
     onclick_block=()=>{
         var ev = window.event as KeyboardEvent;
