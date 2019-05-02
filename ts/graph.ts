@@ -215,7 +215,7 @@ function ontypeset(id_blocks: OrderedMap<string, TextBlock>, svg1: SVGSVGElement
     g.setDefaultEdgeLabel(function() { return {}; });
 
     for(let blc of id_blocks.values()){
-        make_node(g, blc.ele!, blc.id, blc, null);
+        make_node(g, blc.ele!, "" + blc.id, blc, null);
 
         for(let edge of blc.inputs){
 
@@ -287,6 +287,7 @@ function clear_dom(){
 }
 
 export function show_doc(doc: Doc){
+    doc.check();
     clear_dom();
 
     doc_title_text.value = cur_doc.title;

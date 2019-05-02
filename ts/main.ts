@@ -15,6 +15,16 @@ export class Doc {
         this.title = title;
         this.blocks = blocks;
     }
+
+    check(){
+        for(let [i, blc] of this.blocks.entries()){
+            console.assert(i == blc.id);
+            for(let edge of blc.inputs){
+                console.assert(0 <= edge.src_id && edge.src_id < this.blocks.length);
+                console.assert(edge.src_id != edge.dst_id && edge.dst_id == blc.id);
+            }
+        }
+    }
 }
 
 var msg_text : HTMLSpanElement = document.getElementById("msg-text") as HTMLSpanElement;
@@ -171,7 +181,7 @@ function array_remove<T>(arr:T[], value:T){
     }
 }
 
-export function get_block(id: string){
+export function get_block(id: number){
     return cur_doc.blocks.find(x => x.id == id);
 }
 
@@ -342,7 +352,7 @@ function restore_doc(doc_obj:any) : Doc {
     var block_objs = JSON.parse(doc_obj.blocks_str);
 
     for(let [i, blc] of block_objs.entries()){
-        console.assert("#" + i == blc.id);
+        console.assert(blc.id == i);
 
         var inputs = blc.inputs.map((x:any) => new Edge(x.src_id, x.dst_id, x.label));
         new TextBlock(doc, inputs, blc.text, (blc.link == undefined ? null : blc.link));
@@ -395,15 +405,15 @@ export class OrderedMap<K, V> {
 }    
 
 export class Edge {
-    src_id: string;
-    dst_id: string;
+    src_id: number;
+    dst_id: number;
     label: string;
     label_ele: HTMLDivElement | null;
     clicked = false; 
     rect: SVGRectElement|null = null;
     paths: SVGPathElement[] = [];
 
-    constructor(src_id: string, dst_id: string, label: string){
+    constructor(src_id: number, dst_id: number, label: string){
         this.src_id = src_id;
         this.dst_id = dst_id;
         this.label = label;
@@ -450,7 +460,7 @@ export class Edge {
 
 export class TextBlock {
     parent: any;
-    id: string;
+    id: number;
     inputs: Edge[];
     text: string;
     link : number | null;
@@ -459,7 +469,7 @@ export class TextBlock {
     
     constructor(parent: Doc, inputs: Edge[], text: string, link: number | null){
         this.parent = parent;
-        this.id = "#" + parent.blocks.length;
+        this.id = parent.blocks.length;
         this.inputs = inputs;
         this.text = text;
         this.link = link;
@@ -478,16 +488,27 @@ export class TextBlock {
 
 
     del_block = ()=>{
+        cur_doc.blocks = cur_doc.blocks.filter(x => x != this);
         for(let blc of cur_doc.blocks){
+            if(this.id < blc.id){
+                blc.id--;
+            }
+
             blc.inputs = blc.inputs.filter(x => x.src_id != this.id);
+            for(let edge of blc.inputs){
+                if(this.id < edge.src_id){
+                    edge.src_id--;
+                }
+                if(this.id < edge.dst_id){
+                    edge.dst_id--;
+                }
+                console.assert(edge.dst_id == blc.id);
+            }
         }
-    
-        array_remove(cur_doc.blocks, this);
     
         show_doc(cur_doc);
     }
     
-
     onclick_block=()=>{
         var ev = window.event as KeyboardEvent;
 
@@ -595,7 +616,10 @@ export class LogicGraph{
                 }
                 docs_select.appendChild(opt);
             }
-            console.log("rcv doc 終わり", this.docs);
+
+            this.docs.map(x => x.check());
+
+            console.log("rcv doc 終わり", this.docs.length);
         });            
     }
 
@@ -604,6 +628,8 @@ export class LogicGraph{
         if(this.user == null){
             msg("ログインしていません。");
         }
+
+        this.docs.map(x => x.check());
 
         var next_ver = (sys_inf.ver + 1) % 10;
         for(let doc of this.docs){
