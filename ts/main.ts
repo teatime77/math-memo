@@ -16,9 +16,17 @@ export class Doc {
         this.blocks = blocks;
     }
 
+    copy(){
+        var max_id = Math.max(... logic_graph.docs.map(x => x.id));
+        var doc = new Doc(max_id + 1, this.title + "-copy", []);
+        this.blocks.map(x => x.copy(doc));
+
+        return doc;
+    }
+
     check(){
         for(let [i, blc] of this.blocks.entries()){
-            console.assert(i == blc.id);
+            console.assert(blc.parent == this && i == blc.id);
             for(let edge of blc.inputs){
                 console.assert(0 <= edge.src_id && edge.src_id < this.blocks.length);
                 console.assert(edge.src_id != edge.dst_id && edge.dst_id == blc.id);
@@ -81,6 +89,10 @@ function make_html_map(){
         if(block.ele != null){
 
             map.set(block.ele, block);
+        }
+        if(block.rect != null){
+
+            map.set(block.rect, block);
         }
         for(let edge of block.inputs){
             if(edge.rect != null){
@@ -298,8 +310,8 @@ function show_menu(ev:MouseEvent, menu_defs: [string, any][]){
     popup_menu.innerHTML = "";
     make_sub_menu(popup_menu, null, menu_defs);
 
-    popup_menu.style.left = ev.x + "px";
-    popup_menu.style.top  = ev.y + "px";
+    popup_menu.style.left = (window.scrollX + ev.x) + "px";
+    popup_menu.style.top  = (window.scrollY + ev.y) + "px";
     popup_menu.style.display = "inline-block";
 }
 
@@ -408,8 +420,9 @@ export class Edge {
     src_id: number;
     dst_id: number;
     label: string;
-    label_ele: HTMLDivElement | null;
+
     clicked = false; 
+    label_ele: HTMLDivElement | null;
     rect: SVGRectElement|null = null;
     paths: SVGPathElement[] = [];
 
@@ -418,6 +431,10 @@ export class Edge {
         this.dst_id = dst_id;
         this.label = label;
         this.label_ele = null;
+    }
+
+    copy(){
+        return new Edge(this.src_id, this.dst_id, this.label);
     }
 
     to_json(){
@@ -459,11 +476,12 @@ export class Edge {
 }
 
 export class TextBlock {
-    parent: any;
+    parent: Doc;
     id: number;
     inputs: Edge[];
     text: string;
     link : number | null;
+
     ele: HTMLDivElement | null;
     rect: SVGRectElement|null = null;
     
@@ -476,6 +494,11 @@ export class TextBlock {
         this.ele = null;
 
         parent.blocks.push(this);
+    }
+
+    copy(parent: Doc){
+        var inputs = this.inputs.map(x => x.copy());
+        return new TextBlock(parent, inputs, this.text, this.link);
     }
 
     to_json(){
@@ -573,11 +596,10 @@ export class LogicGraph{
         this.user = null;
     }
 
-    new_doc=()=>{
-        var max_id = Math.max(... this.docs.map(x => x.id));
-        cur_doc = new Doc(max_id + 1, "タイトル", []);
-
-        new TextBlock(cur_doc, [], "テキスト", null);
+    add_doc(doc: Doc){
+        set_cur_edge(null);
+        set_cur_block(null);
+        cur_doc = doc;
 
         this.docs.push(cur_doc);
 
@@ -586,7 +608,15 @@ export class LogicGraph{
         docs_select.appendChild(opt);
         docs_select.selectedIndex = docs_select.options.length - 1;
 
-        show_doc(cur_doc);    
+        show_doc(cur_doc);
+    }
+
+    new_doc=()=>{
+        var max_id = Math.max(... this.docs.map(x => x.id));
+        var doc = new Doc(max_id + 1, "タイトル", []);
+        new TextBlock(doc, [], "テキスト", null);
+
+        this.add_doc(doc);
     }
 
     read_docs = ()=>{
@@ -595,7 +625,7 @@ export class LogicGraph{
         }
 
         this.docs = [];
-        db.collection('users-' + sys_inf.ver ).doc(this.user.uid).collection('docs')
+        db.collection('users').doc(this.user.uid).collection('docs-' + sys_inf.ver)
         .get().then((querySnapshot: any) => {
             querySnapshot.forEach((data:any) => {
                 var doc = restore_doc(data.data());
@@ -631,9 +661,9 @@ export class LogicGraph{
 
         this.docs.map(x => x.check());
 
-        var next_ver = (sys_inf.ver + 1) % 10;
+        var next_ver = (sys_inf.ver + 1) % 20;
         for(let doc of this.docs){
-            var doc_ref = db.collection('users-' + next_ver).doc(this.user.uid).collection('docs').doc("" + doc.id);
+            var doc_ref = db.collection('users').doc(this.user.uid).collection('docs-' + next_ver).doc("" + doc.id);
 
             var doc_str = stringify_doc(doc);
             doc_ref.set(doc_str)
@@ -645,7 +675,7 @@ export class LogicGraph{
             });
         }
 
-        var sys_ref = db.collection('sys').doc("0");
+        var sys_ref = db.collection('users').doc(this.user.uid).collection('sys').doc("0");
         sys_ref.set({ "ver": next_ver })
         .then(function() {
             console.log("SYS inf written: " + next_ver);
@@ -654,20 +684,20 @@ export class LogicGraph{
             console.error("Error adding SYS inf: ", error);
         });
     }
+
+    copy_docs=()=>{
+        var doc = cur_doc.copy();
+        doc.check();
+        this.add_doc(doc);
+    }
 }
 
 var db = firebase.firestore();
 
 export var logic_graph : LogicGraph;
 
-export function init_graph(){
-    logic_graph = new LogicGraph();
-
-    document.getElementById("new-doc-btn")!.addEventListener("click", logic_graph.new_doc);
-    document.getElementById("read-doc-btn")!.addEventListener("click", logic_graph.read_docs);
-    document.getElementById("save-doc-btn")!.addEventListener("click", logic_graph.save_docs);
-
-    db.collection('sys').doc("0").get()
+function get_sys_inf(uid: string){
+    db.collection('users').doc(uid).collection('sys').doc("0").get()
     .then(function(obj:any) {
         if (obj.exists) {
             sys_inf = obj.data();
@@ -680,11 +710,24 @@ export function init_graph(){
     .catch(function(error:any) {
         console.log("Error getting sys-inf:", error);
     });    
+}
+
+export function init_graph(){
+    logic_graph = new LogicGraph();
+
+    document.getElementById("new-doc-btn")!.addEventListener("click", logic_graph.new_doc);
+    document.getElementById("read-doc-btn")!.addEventListener("click", logic_graph.read_docs);
+    document.getElementById("copy-doc-btn")!.addEventListener("click", logic_graph.copy_docs);
+
+    var save_doc_btn = document.getElementById("save-doc-btn") as HTMLInputElement;
+    save_doc_btn.addEventListener("click", logic_graph.save_docs);
     
     firebase.auth().onAuthStateChanged(function(user: any) {
         if (user) {
             // User is signed in.
-            console.log(`ログイン ${user.uid}`);
+            console.log(`ログイン ${user.uid} ${user.displayName} ${user.email}`);
+
+            save_doc_btn.style.display = "inherit";
     
             logic_graph.user = user;
     
@@ -692,7 +735,9 @@ export function init_graph(){
     
             if (user1) {
                 // User is signed in.
-                console.log(user1);
+                // console.log(user1);
+
+                get_sys_inf(user.uid);            
             } 
             else {
                 // No user is signed in.
@@ -703,6 +748,8 @@ export function init_graph(){
             // User is signed out.
             // ...
             console.log("ログアウト");
+            logic_graph.user = { uid:"6fW1x4g2DURjc3D3dKkYdQmRKoo1"};
+            get_sys_inf(logic_graph.user.uid);            
         }
     });
 
