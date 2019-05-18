@@ -44,6 +44,28 @@ function OrderPoints(p1:Point, p2:Point){
 }
 
 var svg : SVGSVGElement;
+
+var CTM : DOMMatrix;
+var CTMInv : DOMMatrix;
+var svg_ratio: number;
+
+function to_svg(x:number){
+    return `${x * svg_ratio}`;
+}
+
+function get_svg_point(ev: MouseEvent){
+	var point = svg.createSVGPoint();
+	
+    //画面上の座標を取得する．
+    point.x = ev.offsetX;
+    point.y = ev.offsetY;
+
+    //座標に逆行列を適用する．
+    var p = point.matrixTransform(CTMInv);    
+
+    return new Point(p.x, p.y);
+}
+
 var tool_type = "line-segment";
 
 abstract class Tool {
@@ -62,7 +84,7 @@ class Handle {
 
     constructor(pt:Point, handle_move:any= null){
         this.circle = document.createElementNS("http://www.w3.org/2000/svg","circle");
-        this.circle.setAttribute("r", "4");
+        this.circle.setAttribute("r", to_svg(4));
         this.circle.setAttribute("fill", "blue");
         this.circle.addEventListener("pointerdown", this.pointerdown);
         this.circle.addEventListener("pointermove", this.pointermove);
@@ -84,7 +106,7 @@ class Handle {
 
     pointerdown =(ev: PointerEvent)=>{
         capture = this;
-        this.down_point = new Point(ev.offsetX, ev.offsetY);
+        this.down_point = get_svg_point(ev);
         this.circle.setPointerCapture(ev.pointerId);
         console.log("handle pointer down");
     }
@@ -95,7 +117,7 @@ class Handle {
         }
         console.log("handle pointer move");
 
-        var pt = new Point(ev.offsetX, ev.offsetY);
+        var pt = get_svg_point(ev);
         this.set_pos(pt);
 
         if(this.handle_move != null){
@@ -110,7 +132,7 @@ class Handle {
         capture = null;
         this.down_point = null;
 
-        var pt = new Point(ev.offsetX, ev.offsetY);
+        var pt = get_svg_point(ev);
         this.set_pos(pt);
     }
     
@@ -150,7 +172,7 @@ class LineSegment extends Tool {
             this.line.setAttribute("x2", "" + pt.x);
             this.line.setAttribute("y2", "" + pt.y);
             this.line.setAttribute("stroke", "navy");
-            this.line.setAttribute("stroke-width", "3px");
+            this.line.setAttribute("stroke-width", to_svg(3));
         
             svg.appendChild(this.line);
     
@@ -227,11 +249,11 @@ class Rect extends Tool {
 
             this.rect.setAttribute("x", "" + pt.x);
             this.rect.setAttribute("y", "" + pt.y);
-            this.rect.setAttribute("width", "1");
-            this.rect.setAttribute("height", "1");
+            this.rect.setAttribute("width", to_svg(1));
+            this.rect.setAttribute("height", to_svg(1));
             this.rect.setAttribute("fill", "transparent");
             this.rect.setAttribute("stroke", "navy");
-            this.rect.setAttribute("stroke-width", "3px");
+            this.rect.setAttribute("stroke-width", to_svg(3));
             
             svg.appendChild(this.rect);    
         }
@@ -289,10 +311,10 @@ class Circle extends Tool {
 
             this.circle.setAttribute("cx", "" + pt.x);
             this.circle.setAttribute("cy", "" + pt.y);
-            this.circle.setAttribute("r", "1");
+            this.circle.setAttribute("r", to_svg(1));
             this.circle.setAttribute("fill", "transparent");
             this.circle.setAttribute("stroke", "navy");
-            this.circle.setAttribute("stroke-width", "3px");
+            this.circle.setAttribute("stroke-width", to_svg(3));
         
             svg.appendChild(this.circle);    
         }
@@ -347,7 +369,7 @@ class Triangle extends Tool {
         var line = document.createElementNS("http://www.w3.org/2000/svg","line");
 
         line.setAttribute("stroke", "navy");
-        line.setAttribute("stroke-width", "3px");
+        line.setAttribute("stroke-width", to_svg(3));
 
         line.setAttribute("x1", "" + pt.x);
         line.setAttribute("y1", "" + pt.y);
@@ -389,8 +411,8 @@ class TextBox extends Tool {
 
     static ontypeset(self: TextBox){
         var rc = self.div!.getBoundingClientRect();
-        self.rect.setAttribute("width", `${rc.width}`);
-        self.rect.setAttribute("height", `${rc.height}`);
+        self.rect.setAttribute("width", `${to_svg(rc.width)}`);
+        self.rect.setAttribute("height", `${to_svg(rc.height)}`);
     }
 
     static ok_click(){
@@ -417,19 +439,20 @@ class TextBox extends Tool {
 
         this.rect.setAttribute("x", "" + pt.x);
         this.rect.setAttribute("y", "" + pt.y);
-        this.rect.setAttribute("width", "1");
-        this.rect.setAttribute("height", "1");
+        this.rect.setAttribute("width", to_svg(1));
+        this.rect.setAttribute("height", to_svg(1));
         this.rect.setAttribute("fill", "transparent");
         this.rect.setAttribute("stroke", "navy");
+        this.rect.setAttribute("stroke-width", to_svg(3));
 
         svg.appendChild(this.rect);
 
-        var rc = svg.getBoundingClientRect() as DOMRect;
+        var ev = window.event as MouseEvent;
 
         this.div = document.createElement("div");
         this.div.style.position = "absolute";
-        this.div.style.left  = `${window.scrollX + rc.x + pt.x}px`;
-        this.div.style.top   = `${window.scrollY + rc.y + pt.y}px`;
+        this.div.style.left  = `${ev.pageX}px`;
+        this.div.style.top   = `${ev.pageY}px`;
         this.div.style.backgroundColor = "cornsilk"
         document.body.appendChild(this.div);
 
@@ -448,7 +471,8 @@ function svg_click(ev: MouseEvent){
     if(capture != null){
         return;
     }
-    var pt = new Point(ev.offsetX, ev.offsetY);
+
+    var pt = get_svg_point(ev);
     console.log(`svg click ${pt.x} ${pt.y}`);
 
     if(tool != null){
@@ -462,7 +486,7 @@ function svg_mousedown(ev: MouseEvent){
         return;
     }
 
-    var pt = new Point(ev.offsetX, ev.offsetY);
+    var pt = get_svg_point(ev);
     console.log(`svg mouse down ${pt.x} ${pt.y}`);
 
     if(tool == null){
@@ -500,7 +524,7 @@ function svg_mouseup(ev: MouseEvent){
     }
 
     if(tool != null){
-        var pt = new Point(ev.offsetX, ev.offsetY);
+        var pt = get_svg_point(ev);
         tool.mouseup(pt);
     }
 }
@@ -511,7 +535,7 @@ function svg_mousemove(ev: MouseEvent){
     }
 
     if(tool != null){
-        var pt = new Point(ev.offsetX, ev.offsetY);
+        var pt = get_svg_point(ev);
         tool.mousemove(pt);
     }
 }
@@ -523,8 +547,14 @@ export function text_box_ok_click(){
 export function init_draw(){
     property_div = document.getElementById("property-div") as HTMLDivElement;
 
-    // var svg = document.getElementsByTagNameNS("http://www.w3.org/2000/svg","svg")[0]
     svg = document.getElementById("main-svg") as unknown as SVGSVGElement;
+
+    CTM = svg.getCTM()!;
+    CTMInv = CTM.inverse();
+
+    var rc = svg.getBoundingClientRect() as DOMRect;
+    svg_ratio = svg.viewBox.baseVal.width / rc.width;
+
     svg.addEventListener("click", svg_click);
     svg.addEventListener("mousedown", svg_mousedown);
     svg.addEventListener("mousemove", svg_mousemove);
