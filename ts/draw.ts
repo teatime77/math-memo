@@ -167,6 +167,86 @@ class LineSegment extends Tool {
     }
 }
 
+function get_rect_pos(pt1: Point, pt2: Point){
+    var x1, y1, x2, y2;
+
+    if(pt1.x <= pt2.x){
+        x1 = pt1.x;
+        x2 = pt2.x;
+    }
+    else{
+
+        x1 = pt2.x;
+        x2 = pt1.x;
+    }
+
+    if(pt1.y <= pt2.y){
+        y1 = pt1.y;
+        y2 = pt2.y;
+    }
+    else{
+
+        y1 = pt2.y;
+        y2 = pt1.y;
+    }
+
+    return [x1, y1, x2, y2];
+}
+
+class Rect extends Tool {    
+    points : Array<Point> = [];
+    rect : SVGRectElement;
+    handles : Handle[] = [];
+
+    constructor(){
+        super();
+        this.rect = document.createElementNS("http://www.w3.org/2000/svg","rect");
+    }
+
+    set_rect_pos(pt1: Point, pt2: Point){
+        let [x1, y1, x2, y2] = get_rect_pos(pt1, pt2);
+
+        this.rect.setAttribute("x", "" + x1);
+        this.rect.setAttribute("y", "" + y1);
+        this.rect.setAttribute("width" , `${x2 - x1}`);
+        this.rect.setAttribute("height", `${y2 - y1}`);
+    }
+
+    handle_move =(handle: Handle, ev:PointerEvent, pt: Point)=>{
+        var idx = this.handles.indexOf(handle);
+        this.points[idx] = pt;
+        this.set_rect_pos(this.points[0], this.points[1]);
+    }
+
+    click(pt:Point): void {
+        this.handles.push( new Handle(pt, this.handle_move) );
+
+        this.points.push(pt);
+
+        if(this.points.length == 1){
+
+            this.rect.setAttribute("x", "" + pt.x);
+            this.rect.setAttribute("y", "" + pt.y);
+            this.rect.setAttribute("width", "1");
+            this.rect.setAttribute("height", "1");
+            this.rect.setAttribute("fill", "transparent");
+            this.rect.setAttribute("stroke", "navy");
+            this.rect.setAttribute("stroke-width", "3px");
+            
+            svg.appendChild(this.rect);    
+        }
+        else{
+            this.set_rect_pos(this.points[0], this.points[1]);
+
+            tool = null;
+        }    
+    }
+
+    mousemove(pt:Point) : void {
+        this.set_rect_pos(this.points[0], pt);
+    }
+}
+
 class Circle extends Tool {
     points : Array<Point> = [];
     circle: SVGCircleElement;
@@ -390,7 +470,11 @@ function svg_mousedown(ev: MouseEvent){
             case "line-segment":
             tool = new LineSegment();
             break;
-    
+
+            case "rect":
+            tool = new Rect();
+            break;
+            
             case "circle":    
             tool = new Circle();
             break;
