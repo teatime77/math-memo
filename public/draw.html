@@ -70,7 +70,8 @@ path {
 
 <body onload="body_onload()">
     <span>
-        <input type="radio" name="tool-type" value="line-segment" checked />線分
+        <input type="radio" name="tool-type" value="select" />選択
+        <input type="radio" name="tool-type" value="line-segment"  checked />線分
         <input type="radio" name="tool-type" value="circle" />円
         <input type="radio" name="tool-type" value="rect" />長方形
         <input type="radio" name="tool-type" value="triangle" />三角形
@@ -82,7 +83,9 @@ path {
     <div id="property-div" style="width:200px;"></div>
 
     <dialog id="text-box-dlg">
-        <textarea id="text-box-text" rows="10" cols="80" ></textarea><br/>
+        <textarea id="text-box-text" rows="10" cols="80" >$$
+\frac{1}{2 \pi \sigma^2} \int_{-\infty}^\infty \exp^{ - \frac{{(x - \mu)}^2}{2 \sigma^2}  } dx
+$$</textarea><br/>
         <span>
             <input id="text-box-ok" type="button" value="OK" />
         </span>
