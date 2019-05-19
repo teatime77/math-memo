@@ -69,8 +69,21 @@ function get_svg_point(ev: MouseEvent | PointerEvent){
 var tool_type = "line-segment";
 
 abstract class Shape {
+    handles : Point[] = [];
+
     click =(ev: MouseEvent, pt:Vec2): void => {}
     pointermove = (ev: PointerEvent) : void => {}
+
+    constructor(){
+        shapes.push(this);
+    }
+}
+
+var shapes: Shape[] = [];
+
+function get_point(ev: MouseEvent) : Point | null{
+    var pt = shapes.find(x => x.constructor.name == "Point" && (x as Point).circle == ev.target) as (Point|undefined);
+    return pt == undefined ? null : pt;
 }
 
 
@@ -82,7 +95,7 @@ class Point extends Shape {
     constructor(pt:Vec2, handle_moves:any[]= []){
         super();
         this.circle = document.createElementNS("http://www.w3.org/2000/svg","circle");
-        this.circle.setAttribute("r", to_svg(4));
+        this.circle.setAttribute("r", to_svg(5));
         this.circle.setAttribute("fill", "blue");
         this.circle.addEventListener("pointerdown", this.pointerdown);
         this.circle.addEventListener("pointermove", this.pointermove);
@@ -150,11 +163,11 @@ class Point extends Shape {
 class LineSegment extends Shape {    
     points : Array<Vec2> = [];
     line : SVGLineElement;
-    handles : Point[] = [];
 
     constructor(){
         super();
         this.line = document.createElementNS("http://www.w3.org/2000/svg","line");
+        svg.appendChild(this.line);
     }
 
     handle_move =(handle: Point, ev:PointerEvent, pt: Vec2)=>{
@@ -172,19 +185,26 @@ class LineSegment extends Shape {
     }
 
     click =(ev: MouseEvent, pt:Vec2): void => {
-        this.handles.push( new Point(pt, [this.handle_move]) );
+        var handle = get_point(ev);
+        if(handle == null){
 
+            handle = new Point(pt, [this.handle_move]);
+        }
+        else{
+            svg.appendChild( svg.removeChild(handle.circle) );
+            handle.handle_moves.push(this.handle_move);
+        }
+        this.handles.push(handle);
+
+        this.line.setAttribute("x2", "" + pt.x);
+        this.line.setAttribute("y2", "" + pt.y);
         if(this.points.length == 0){
 
             this.line.setAttribute("x1", "" + pt.x);
             this.line.setAttribute("y1", "" + pt.y);
-            this.line.setAttribute("x2", "" + pt.x);
-            this.line.setAttribute("y2", "" + pt.y);
             this.line.setAttribute("stroke", "navy");
             this.line.setAttribute("stroke-width", to_svg(3));
-        
-            svg.appendChild(this.line);
-    
+            
             this.points.push(pt);
         }
         else{
@@ -193,6 +213,10 @@ class LineSegment extends Shape {
     }
 
     pointermove =(ev: PointerEvent) : void =>{
+        if(ev.target != null && ev.target.constructor.name == "SVGCircleElement"){
+            return;
+        }
+
         var pt = get_svg_point(ev);
 
         this.line!.setAttribute("x2", "" + pt.x);
@@ -229,7 +253,6 @@ function get_rect_pos(pt1: Vec2, pt2: Vec2){
 class Rect extends Shape {    
     points : Array<Vec2> = [];
     rect : SVGRectElement;
-    handles : Point[] = [];
 
     constructor(){
         super();
@@ -285,7 +308,6 @@ class Rect extends Shape {
 class Circle extends Shape {
     points : Array<Vec2> = [];
     circle: SVGCircleElement;
-    handles : Point[] = [];
 
     constructor(){
         super();
@@ -355,7 +377,6 @@ class Circle extends Shape {
 class Triangle extends Shape {
     points : Array<Vec2> = [];
     lines : Array<SVGLineElement> = [];
-    handles : Point[] = [];
 
     constructor(){
         super();
