@@ -69,9 +69,8 @@ function get_svg_point(ev: MouseEvent | PointerEvent){
 var tool_type = "line-segment";
 
 abstract class Tool {
-    click(ev: MouseEvent, pt:Vec2): void {}
-    pointermove(pt:Vec2) : void {}
-    show_property():void {}
+    click =(ev: MouseEvent, pt:Vec2): void => {}
+    pointermove = (pt:Vec2) : void => {}
 }
 
 
@@ -145,7 +144,6 @@ class Handle {
         var pt = get_svg_point(ev);
         this.set_pos(pt);
     }
-    
 }
 
 class LineSegment extends Tool {    
@@ -172,7 +170,7 @@ class LineSegment extends Tool {
         }
     }
 
-    click(ev: MouseEvent, pt:Vec2): void {
+    click =(ev: MouseEvent, pt:Vec2): void => {
         this.handles.push( new Handle(pt, this.handle_move) );
 
         if(this.points.length == 0){
@@ -193,7 +191,7 @@ class LineSegment extends Tool {
         }    
     }
 
-    pointermove(pt:Vec2) : void {
+    pointermove =(pt:Vec2) : void =>{
         this.line!.setAttribute("x2", "" + pt.x);
         this.line!.setAttribute("y2", "" + pt.y);
     }
@@ -250,7 +248,7 @@ class Rect extends Tool {
         this.set_rect_pos(this.points[0], this.points[1]);
     }
 
-    click(ev: MouseEvent, pt:Vec2): void {
+    click =(ev: MouseEvent, pt:Vec2): void =>{
         this.handles.push( new Handle(pt, this.handle_move) );
 
         this.points.push(pt);
@@ -274,7 +272,7 @@ class Rect extends Tool {
         }    
     }
 
-    pointermove(pt:Vec2) : void {
+    pointermove =(pt:Vec2) : void =>{
         this.set_rect_pos(this.points[0], pt);
     }
 }
@@ -316,7 +314,7 @@ class Circle extends Tool {
         }
     }
 
-    click(ev: MouseEvent, pt:Vec2): void{
+    click =(ev: MouseEvent, pt:Vec2): void =>{
         if(this.points.length == 0){
 
             this.circle.setAttribute("cx", "" + pt.x);
@@ -340,7 +338,7 @@ class Circle extends Tool {
         this.handles.push( new Handle(pt, this.handle_move) );
     }
 
-    pointermove(pt:Vec2) : void{
+    pointermove =(pt:Vec2) : void =>{
         var r = this.points[0].dist(pt);
         this.circle!.setAttribute("r", "" +  r );
     }
@@ -366,7 +364,7 @@ class Triangle extends Tool {
         this.lines[idx2].setAttribute("y2", "" + pt.y);
     }
 
-    click(ev: MouseEvent, pt:Vec2): void {
+    click =(ev: MouseEvent, pt:Vec2): void =>{
         this.handles.push( new Handle(pt, this.handle_move) );
 
         if(this.lines.length != 0){
@@ -401,7 +399,7 @@ class Triangle extends Tool {
         this.points.push(pt);        
     }
 
-    pointermove(pt:Vec2) : void {
+    pointermove =(pt:Vec2) : void =>{
         var last_line = array_last(this.lines);
         last_line.setAttribute("x2", "" + pt.x);
         last_line.setAttribute("y2", "" + pt.y);
@@ -444,7 +442,7 @@ class TextBox extends Tool {
         this.rect = document.createElementNS("http://www.w3.org/2000/svg","rect");
     }
 
-    click(ev: MouseEvent, pt:Vec2) : void {
+    click =(ev: MouseEvent, pt:Vec2) : void =>{
         this.down_point = pt;
 
         this.rect.setAttribute("x", "" + pt.x);
