@@ -69,10 +69,8 @@ function get_svg_point(ev: MouseEvent | PointerEvent){
 var tool_type = "line-segment";
 
 abstract class Tool {
-    click(pt:Vec2): void {}
-    mousedown(pt:Vec2) : void {}
-    mousemove(pt:Vec2) : void {}
-    mouseup(pt:Vec2) : void {}
+    click(ev: MouseEvent, pt:Vec2): void {}
+    pointermove(pt:Vec2) : void {}
     show_property():void {}
 }
 
@@ -105,6 +103,10 @@ class Handle {
     }
 
     pointerdown =(ev: PointerEvent)=>{
+        if(tool_type != "select"){
+            return;
+        }
+
         capture = this;
         this.down_point = get_svg_point(ev);
         this.circle.setPointerCapture(ev.pointerId);
@@ -112,6 +114,10 @@ class Handle {
     }
 
     pointermove =(ev: PointerEvent)=>{
+        if(tool_type != "select"){
+            return;
+        }
+
         if(capture != this){
             return;
         }
@@ -126,6 +132,10 @@ class Handle {
     }
 
     pointerup =(ev: PointerEvent)=>{
+        if(tool_type != "select"){
+            return;
+        }
+
         console.log("handle pointer up");
 
         this.circle.releasePointerCapture(ev.pointerId);
@@ -162,7 +172,7 @@ class LineSegment extends Tool {
         }
     }
 
-    click(pt:Vec2): void {
+    click(ev: MouseEvent, pt:Vec2): void {
         this.handles.push( new Handle(pt, this.handle_move) );
 
         if(this.points.length == 0){
@@ -183,7 +193,7 @@ class LineSegment extends Tool {
         }    
     }
 
-    mousemove(pt:Vec2) : void {
+    pointermove(pt:Vec2) : void {
         this.line!.setAttribute("x2", "" + pt.x);
         this.line!.setAttribute("y2", "" + pt.y);
     }
@@ -240,7 +250,7 @@ class Rect extends Tool {
         this.set_rect_pos(this.points[0], this.points[1]);
     }
 
-    click(pt:Vec2): void {
+    click(ev: MouseEvent, pt:Vec2): void {
         this.handles.push( new Handle(pt, this.handle_move) );
 
         this.points.push(pt);
@@ -264,7 +274,7 @@ class Rect extends Tool {
         }    
     }
 
-    mousemove(pt:Vec2) : void {
+    pointermove(pt:Vec2) : void {
         this.set_rect_pos(this.points[0], pt);
     }
 }
@@ -306,7 +316,7 @@ class Circle extends Tool {
         }
     }
 
-    click(pt:Vec2): void{
+    click(ev: MouseEvent, pt:Vec2): void{
         if(this.points.length == 0){
 
             this.circle.setAttribute("cx", "" + pt.x);
@@ -330,7 +340,7 @@ class Circle extends Tool {
         this.handles.push( new Handle(pt, this.handle_move) );
     }
 
-    mousemove(pt:Vec2) : void{
+    pointermove(pt:Vec2) : void{
         var r = this.points[0].dist(pt);
         this.circle!.setAttribute("r", "" +  r );
     }
@@ -356,7 +366,7 @@ class Triangle extends Tool {
         this.lines[idx2].setAttribute("y2", "" + pt.y);
     }
 
-    click(pt:Vec2): void {
+    click(ev: MouseEvent, pt:Vec2): void {
         this.handles.push( new Handle(pt, this.handle_move) );
 
         if(this.lines.length != 0){
@@ -391,7 +401,7 @@ class Triangle extends Tool {
         this.points.push(pt);        
     }
 
-    mousemove(pt:Vec2) : void {
+    pointermove(pt:Vec2) : void {
         var last_line = array_last(this.lines);
         last_line.setAttribute("x2", "" + pt.x);
         last_line.setAttribute("y2", "" + pt.y);
@@ -434,7 +444,7 @@ class TextBox extends Tool {
         this.rect = document.createElementNS("http://www.w3.org/2000/svg","rect");
     }
 
-    click(pt:Vec2) : void {
+    click(ev: MouseEvent, pt:Vec2) : void {
         this.down_point = pt;
 
         this.rect.setAttribute("x", "" + pt.x);
@@ -473,24 +483,13 @@ function svg_click(ev: MouseEvent){
     }
 
     var pt = get_svg_point(ev);
-    console.log(`svg click ${pt.x} ${pt.y}`);
-
-    if(tool != null){
-
-        tool.click(pt);
-    }
-}
-
-function svg_pointerdown(ev: PointerEvent){
-    if(capture != null){
-        return;
-    }
-
-    var pt = get_svg_point(ev);
-    console.log(`svg mouse down ${pt.x} ${pt.y}`);
 
     if(tool == null){
         switch(tool_type){
+            case "point":
+            new Handle(pt);
+            break;
+
             case "line-segment":
             tool = new LineSegment();
             break;
@@ -514,18 +513,8 @@ function svg_pointerdown(ev: PointerEvent){
     }
 
     if(tool != null){
-        tool.mousedown(pt);
-    }
-}
 
-function svg_pointerup(ev: PointerEvent){
-    if(capture != null){
-        return;
-    }
-
-    if(tool != null){
-        var pt = get_svg_point(ev);
-        tool.mouseup(pt);
+        tool.click(ev, pt);
     }
 }
 
@@ -536,12 +525,8 @@ function svg_pointermove(ev: PointerEvent){
 
     if(tool != null){
         var pt = get_svg_point(ev);
-        tool.mousemove(pt);
+        tool.pointermove(pt);
     }
-}
-
-export function text_box_ok_click(){
-
 }
 
 export function init_draw(){
@@ -556,9 +541,7 @@ export function init_draw(){
     svg_ratio = svg.viewBox.baseVal.width / rc.width;
 
     svg.addEventListener("click", svg_click);
-    svg.addEventListener("pointerdown", svg_pointerdown);
     svg.addEventListener("pointermove", svg_pointermove);
-    svg.addEventListener("pointerup"  , svg_pointerup);
 
     TextBox.init();
 
