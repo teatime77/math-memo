@@ -53,7 +53,7 @@ function to_svg(x:number){
     return `${x * svg_ratio}`;
 }
 
-function get_svg_point(ev: MouseEvent){
+function get_svg_point(ev: MouseEvent | PointerEvent){
 	var point = svg.createSVGPoint();
 	
     //画面上の座標を取得する．
@@ -481,7 +481,7 @@ function svg_click(ev: MouseEvent){
     }
 }
 
-function svg_mousedown(ev: MouseEvent){
+function svg_pointerdown(ev: PointerEvent){
     if(capture != null){
         return;
     }
@@ -518,7 +518,7 @@ function svg_mousedown(ev: MouseEvent){
     }
 }
 
-function svg_mouseup(ev: MouseEvent){
+function svg_pointerup(ev: PointerEvent){
     if(capture != null){
         return;
     }
@@ -529,7 +529,7 @@ function svg_mouseup(ev: MouseEvent){
     }
 }
 
-function svg_mousemove(ev: MouseEvent){
+function svg_pointermove(ev: PointerEvent){
     if(capture != null){
         return;
     }
@@ -556,9 +556,9 @@ export function init_draw(){
     svg_ratio = svg.viewBox.baseVal.width / rc.width;
 
     svg.addEventListener("click", svg_click);
-    svg.addEventListener("mousedown", svg_mousedown);
-    svg.addEventListener("mousemove", svg_mousemove);
-    svg.addEventListener("mouseup"  , svg_mouseup);
+    svg.addEventListener("pointerdown", svg_pointerdown);
+    svg.addEventListener("pointermove", svg_pointermove);
+    svg.addEventListener("pointerup"  , svg_pointerup);
 
     TextBox.init();
 
