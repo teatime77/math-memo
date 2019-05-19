@@ -68,18 +68,19 @@ function get_svg_point(ev: MouseEvent | PointerEvent){
 
 var tool_type = "line-segment";
 
-abstract class Tool {
+abstract class Shape {
     click =(ev: MouseEvent, pt:Vec2): void => {}
-    pointermove = (pt:Vec2) : void => {}
+    pointermove = (ev: PointerEvent) : void => {}
 }
 
 
-class Handle {
+class Point extends Shape {
     circle : SVGCircleElement;
-    handle_move:any;
+    handle_moves:any[];
     down_point: Vec2|null = null;
 
-    constructor(pt:Vec2, handle_move:any= null){
+    constructor(pt:Vec2, handle_moves:any[]= []){
+        super();
         this.circle = document.createElementNS("http://www.w3.org/2000/svg","circle");
         this.circle.setAttribute("r", to_svg(4));
         this.circle.setAttribute("fill", "blue");
@@ -93,7 +94,7 @@ class Handle {
     
         svg.appendChild(this.circle);
 
-        this.handle_move = handle_move;
+        this.handle_moves = handle_moves;
     }
 
     set_pos(pt:Vec2){
@@ -125,8 +126,8 @@ class Handle {
         var pt = get_svg_point(ev);
         this.set_pos(pt);
 
-        if(this.handle_move != null){
-            this.handle_move(this, ev, pt);
+        for(let handle_move of this.handle_moves){
+            handle_move(this, ev, pt);
         }
     }
 
@@ -146,17 +147,17 @@ class Handle {
     }
 }
 
-class LineSegment extends Tool {    
+class LineSegment extends Shape {    
     points : Array<Vec2> = [];
     line : SVGLineElement;
-    handles : Handle[] = [];
+    handles : Point[] = [];
 
     constructor(){
         super();
         this.line = document.createElementNS("http://www.w3.org/2000/svg","line");
     }
 
-    handle_move =(handle: Handle, ev:PointerEvent, pt: Vec2)=>{
+    handle_move =(handle: Point, ev:PointerEvent, pt: Vec2)=>{
         var idx = this.handles.indexOf(handle);
         if(idx == 0){
 
@@ -171,7 +172,7 @@ class LineSegment extends Tool {
     }
 
     click =(ev: MouseEvent, pt:Vec2): void => {
-        this.handles.push( new Handle(pt, this.handle_move) );
+        this.handles.push( new Point(pt, [this.handle_move]) );
 
         if(this.points.length == 0){
 
@@ -191,7 +192,9 @@ class LineSegment extends Tool {
         }    
     }
 
-    pointermove =(pt:Vec2) : void =>{
+    pointermove =(ev: PointerEvent) : void =>{
+        var pt = get_svg_point(ev);
+
         this.line!.setAttribute("x2", "" + pt.x);
         this.line!.setAttribute("y2", "" + pt.y);
     }
@@ -223,10 +226,10 @@ function get_rect_pos(pt1: Vec2, pt2: Vec2){
     return [x1, y1, x2, y2];
 }
 
-class Rect extends Tool {    
+class Rect extends Shape {    
     points : Array<Vec2> = [];
     rect : SVGRectElement;
-    handles : Handle[] = [];
+    handles : Point[] = [];
 
     constructor(){
         super();
@@ -242,14 +245,14 @@ class Rect extends Tool {
         this.rect.setAttribute("height", `${y2 - y1}`);
     }
 
-    handle_move =(handle: Handle, ev:PointerEvent, pt: Vec2)=>{
+    handle_move =(handle: Point, ev:PointerEvent, pt: Vec2)=>{
         var idx = this.handles.indexOf(handle);
         this.points[idx] = pt;
         this.set_rect_pos(this.points[0], this.points[1]);
     }
 
     click =(ev: MouseEvent, pt:Vec2): void =>{
-        this.handles.push( new Handle(pt, this.handle_move) );
+        this.handles.push( new Point(pt, [this.handle_move]) );
 
         this.points.push(pt);
 
@@ -272,15 +275,17 @@ class Rect extends Tool {
         }    
     }
 
-    pointermove =(pt:Vec2) : void =>{
+    pointermove =(ev: PointerEvent) : void =>{
+        var pt = get_svg_point(ev);
+
         this.set_rect_pos(this.points[0], pt);
     }
 }
 
-class Circle extends Tool {
+class Circle extends Shape {
     points : Array<Vec2> = [];
     circle: SVGCircleElement;
-    handles : Handle[] = [];
+    handles : Point[] = [];
 
     constructor(){
         super();
@@ -291,7 +296,7 @@ class Circle extends Tool {
 
     }
 
-    handle_move =(handle: Handle, ev:PointerEvent, pt: Vec2)=>{
+    handle_move =(handle: Point, ev:PointerEvent, pt: Vec2)=>{
         var idx = this.handles.indexOf(handle);
         
         var old_pt = this.points[idx];
@@ -335,26 +340,28 @@ class Circle extends Tool {
 
         this.points.push(pt);
     
-        this.handles.push( new Handle(pt, this.handle_move) );
+        this.handles.push( new Point(pt, [this.handle_move]) );
     }
 
-    pointermove =(pt:Vec2) : void =>{
+    pointermove =(ev: PointerEvent) : void =>{
+        var pt = get_svg_point(ev);
+
         var r = this.points[0].dist(pt);
         this.circle!.setAttribute("r", "" +  r );
     }
 }
 
 
-class Triangle extends Tool {
+class Triangle extends Shape {
     points : Array<Vec2> = [];
     lines : Array<SVGLineElement> = [];
-    handles : Handle[] = [];
+    handles : Point[] = [];
 
     constructor(){
         super();
     }
 
-    handle_move =(handle: Handle, ev:PointerEvent, pt: Vec2)=>{
+    handle_move =(handle: Point, ev:PointerEvent, pt: Vec2)=>{
         var idx = this.handles.indexOf(handle);
         this.lines[idx].setAttribute("x1", "" + pt.x);
         this.lines[idx].setAttribute("y1", "" + pt.y);
@@ -365,7 +372,7 @@ class Triangle extends Tool {
     }
 
     click =(ev: MouseEvent, pt:Vec2): void =>{
-        this.handles.push( new Handle(pt, this.handle_move) );
+        this.handles.push( new Point(pt, [this.handle_move]) );
 
         if(this.lines.length != 0){
 
@@ -399,14 +406,16 @@ class Triangle extends Tool {
         this.points.push(pt);        
     }
 
-    pointermove =(pt:Vec2) : void =>{
+    pointermove =(ev: PointerEvent) : void =>{
+        var pt = get_svg_point(ev);
+
         var last_line = array_last(this.lines);
         last_line.setAttribute("x2", "" + pt.x);
         last_line.setAttribute("y2", "" + pt.y);
     }
 }
 
-class TextBox extends Tool {
+class TextBox extends Shape {
     static dialog : HTMLDialogElement;
     static text_box : TextBox;    
     down_point : Vec2 | null = null;
@@ -469,7 +478,7 @@ class TextBox extends Tool {
     }
 }
 
-var tool : Tool | null = null;
+var tool : Shape | null = null;
 
 function tool_click(){
     tool_type = (document.querySelector('input[name="tool-type"]:checked') as HTMLInputElement).value;  
@@ -485,7 +494,7 @@ function svg_click(ev: MouseEvent){
     if(tool == null){
         switch(tool_type){
             case "point":
-            new Handle(pt);
+            new Point(pt);
             break;
 
             case "line-segment":
@@ -522,8 +531,7 @@ function svg_pointermove(ev: PointerEvent){
     }
 
     if(tool != null){
-        var pt = get_svg_point(ev);
-        tool.pointermove(pt);
+        tool.pointermove(ev);
     }
 }
 
