@@ -8,7 +8,7 @@ var property_div : HTMLDivElement;
 class Path {
 }
 
-class Point {
+class Vec2 {
     x: number;
     y: number;
     constructor(x:number, y: number){
@@ -16,7 +16,7 @@ class Point {
         this.y = y;
     }
 
-    dist(pt:Point){
+    dist(pt:Vec2){
         var dx = pt.x - this.x;
         var dy = pt.y - this.y;
 
@@ -24,9 +24,9 @@ class Point {
     }
 }
 
-function OrderPoints(p1:Point, p2:Point){
-    var pt1 = new Point(p1.x, p1.y);
-    var pt2 = new Point(p2.x, p2.y);
+function OrderPoints(p1:Vec2, p2:Vec2){
+    var pt1 = new Vec2(p1.x, p1.y);
+    var pt2 = new Vec2(p2.x, p2.y);
 
     if(pt2.x < pt1.x){
         var tmp = pt1.x;
@@ -63,16 +63,16 @@ function get_svg_point(ev: MouseEvent){
     //座標に逆行列を適用する．
     var p = point.matrixTransform(CTMInv);    
 
-    return new Point(p.x, p.y);
+    return new Vec2(p.x, p.y);
 }
 
 var tool_type = "line-segment";
 
 abstract class Tool {
-    click(pt:Point): void {}
-    mousedown(pt:Point) : void {}
-    mousemove(pt:Point) : void {}
-    mouseup(pt:Point) : void {}
+    click(pt:Vec2): void {}
+    mousedown(pt:Vec2) : void {}
+    mousemove(pt:Vec2) : void {}
+    mouseup(pt:Vec2) : void {}
     show_property():void {}
 }
 
@@ -80,9 +80,9 @@ abstract class Tool {
 class Handle {
     circle : SVGCircleElement;
     handle_move:any;
-    down_point: Point|null = null;
+    down_point: Vec2|null = null;
 
-    constructor(pt:Point, handle_move:any= null){
+    constructor(pt:Vec2, handle_move:any= null){
         this.circle = document.createElementNS("http://www.w3.org/2000/svg","circle");
         this.circle.setAttribute("r", to_svg(4));
         this.circle.setAttribute("fill", "blue");
@@ -99,7 +99,7 @@ class Handle {
         this.handle_move = handle_move;
     }
 
-    set_pos(pt:Point){
+    set_pos(pt:Vec2){
         this.circle.setAttribute("cx", "" + pt.x);
         this.circle.setAttribute("cy", "" + pt.y);
     }
@@ -139,7 +139,7 @@ class Handle {
 }
 
 class LineSegment extends Tool {    
-    points : Array<Point> = [];
+    points : Array<Vec2> = [];
     line : SVGLineElement;
     handles : Handle[] = [];
 
@@ -148,7 +148,7 @@ class LineSegment extends Tool {
         this.line = document.createElementNS("http://www.w3.org/2000/svg","line");
     }
 
-    handle_move =(handle: Handle, ev:PointerEvent, pt: Point)=>{
+    handle_move =(handle: Handle, ev:PointerEvent, pt: Vec2)=>{
         var idx = this.handles.indexOf(handle);
         if(idx == 0){
 
@@ -162,7 +162,7 @@ class LineSegment extends Tool {
         }
     }
 
-    click(pt:Point): void {
+    click(pt:Vec2): void {
         this.handles.push( new Handle(pt, this.handle_move) );
 
         if(this.points.length == 0){
@@ -183,13 +183,13 @@ class LineSegment extends Tool {
         }    
     }
 
-    mousemove(pt:Point) : void {
+    mousemove(pt:Vec2) : void {
         this.line!.setAttribute("x2", "" + pt.x);
         this.line!.setAttribute("y2", "" + pt.y);
     }
 }
 
-function get_rect_pos(pt1: Point, pt2: Point){
+function get_rect_pos(pt1: Vec2, pt2: Vec2){
     var x1, y1, x2, y2;
 
     if(pt1.x <= pt2.x){
@@ -216,7 +216,7 @@ function get_rect_pos(pt1: Point, pt2: Point){
 }
 
 class Rect extends Tool {    
-    points : Array<Point> = [];
+    points : Array<Vec2> = [];
     rect : SVGRectElement;
     handles : Handle[] = [];
 
@@ -225,7 +225,7 @@ class Rect extends Tool {
         this.rect = document.createElementNS("http://www.w3.org/2000/svg","rect");
     }
 
-    set_rect_pos(pt1: Point, pt2: Point){
+    set_rect_pos(pt1: Vec2, pt2: Vec2){
         let [x1, y1, x2, y2] = get_rect_pos(pt1, pt2);
 
         this.rect.setAttribute("x", "" + x1);
@@ -234,13 +234,13 @@ class Rect extends Tool {
         this.rect.setAttribute("height", `${y2 - y1}`);
     }
 
-    handle_move =(handle: Handle, ev:PointerEvent, pt: Point)=>{
+    handle_move =(handle: Handle, ev:PointerEvent, pt: Vec2)=>{
         var idx = this.handles.indexOf(handle);
         this.points[idx] = pt;
         this.set_rect_pos(this.points[0], this.points[1]);
     }
 
-    click(pt:Point): void {
+    click(pt:Vec2): void {
         this.handles.push( new Handle(pt, this.handle_move) );
 
         this.points.push(pt);
@@ -264,13 +264,13 @@ class Rect extends Tool {
         }    
     }
 
-    mousemove(pt:Point) : void {
+    mousemove(pt:Vec2) : void {
         this.set_rect_pos(this.points[0], pt);
     }
 }
 
 class Circle extends Tool {
-    points : Array<Point> = [];
+    points : Array<Vec2> = [];
     circle: SVGCircleElement;
     handles : Handle[] = [];
 
@@ -279,11 +279,11 @@ class Circle extends Tool {
         this.circle = document.createElementNS("http://www.w3.org/2000/svg","circle");
     }
 
-    set_point(idx: number, pt: Point){
+    set_point(idx: number, pt: Vec2){
 
     }
 
-    handle_move =(handle: Handle, ev:PointerEvent, pt: Point)=>{
+    handle_move =(handle: Handle, ev:PointerEvent, pt: Vec2)=>{
         var idx = this.handles.indexOf(handle);
         
         var old_pt = this.points[idx];
@@ -306,7 +306,7 @@ class Circle extends Tool {
         }
     }
 
-    click(pt:Point): void{
+    click(pt:Vec2): void{
         if(this.points.length == 0){
 
             this.circle.setAttribute("cx", "" + pt.x);
@@ -330,7 +330,7 @@ class Circle extends Tool {
         this.handles.push( new Handle(pt, this.handle_move) );
     }
 
-    mousemove(pt:Point) : void{
+    mousemove(pt:Vec2) : void{
         var r = this.points[0].dist(pt);
         this.circle!.setAttribute("r", "" +  r );
     }
@@ -338,7 +338,7 @@ class Circle extends Tool {
 
 
 class Triangle extends Tool {
-    points : Array<Point> = [];
+    points : Array<Vec2> = [];
     lines : Array<SVGLineElement> = [];
     handles : Handle[] = [];
 
@@ -346,7 +346,7 @@ class Triangle extends Tool {
         super();
     }
 
-    handle_move =(handle: Handle, ev:PointerEvent, pt: Point)=>{
+    handle_move =(handle: Handle, ev:PointerEvent, pt: Vec2)=>{
         var idx = this.handles.indexOf(handle);
         this.lines[idx].setAttribute("x1", "" + pt.x);
         this.lines[idx].setAttribute("y1", "" + pt.y);
@@ -356,7 +356,7 @@ class Triangle extends Tool {
         this.lines[idx2].setAttribute("y2", "" + pt.y);
     }
 
-    click(pt:Point): void {
+    click(pt:Vec2): void {
         this.handles.push( new Handle(pt, this.handle_move) );
 
         if(this.lines.length != 0){
@@ -391,7 +391,7 @@ class Triangle extends Tool {
         this.points.push(pt);        
     }
 
-    mousemove(pt:Point) : void {
+    mousemove(pt:Vec2) : void {
         var last_line = array_last(this.lines);
         last_line.setAttribute("x2", "" + pt.x);
         last_line.setAttribute("y2", "" + pt.y);
@@ -401,7 +401,7 @@ class Triangle extends Tool {
 class TextBox extends Tool {
     static dialog : HTMLDialogElement;
     static text_box : TextBox;    
-    down_point : Point | null = null;
+    down_point : Vec2 | null = null;
     rect   : SVGRectElement;
     div : HTMLDivElement | null = null;
     x : number = 0;
@@ -434,7 +434,7 @@ class TextBox extends Tool {
         this.rect = document.createElementNS("http://www.w3.org/2000/svg","rect");
     }
 
-    click(pt:Point) : void {
+    click(pt:Vec2) : void {
         this.down_point = pt;
 
         this.rect.setAttribute("x", "" + pt.x);
