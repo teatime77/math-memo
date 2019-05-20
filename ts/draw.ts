@@ -70,12 +70,26 @@ var tool_type = "line-segment";
 
 abstract class Shape {
     handles : Point[] = [];
+    handle_move:any;
 
     click =(ev: MouseEvent, pt:Vec2): void => {}
     pointermove = (ev: PointerEvent) : void => {}
 
     constructor(){
         shapes.push(this);
+    }
+
+    add_handle(ev: MouseEvent, pt:Vec2){
+        var handle = get_point(ev);
+        if(handle == null){
+
+            handle = new Point(pt, [this.handle_move]);
+        }
+        else{
+            svg.appendChild( svg.removeChild(handle.circle) );
+            handle.handle_moves.push(this.handle_move);
+        }
+        this.handles.push(handle);
     }
 }
 
@@ -88,9 +102,10 @@ function get_point(ev: MouseEvent) : Point | null{
 
 
 class Point extends Shape {
+    pos : Vec2;
+    down_pos: Vec2|null = null;
     circle : SVGCircleElement;
     handle_moves:any[];
-    down_point: Vec2|null = null;
 
     constructor(pt:Vec2, handle_moves:any[]= []){
         super();
@@ -103,16 +118,17 @@ class Point extends Shape {
 
         this.circle.style.cursor = "move";
 
-        this.set_pos(pt);
+        this.pos = pt;
+        this.set_pos();
     
         svg.appendChild(this.circle);
 
         this.handle_moves = handle_moves;
     }
 
-    set_pos(pt:Vec2){
-        this.circle.setAttribute("cx", "" + pt.x);
-        this.circle.setAttribute("cy", "" + pt.y);
+    set_pos(){
+        this.circle.setAttribute("cx", "" + this.pos.x);
+        this.circle.setAttribute("cy", "" + this.pos.y);
     }
 
     pointerdown =(ev: PointerEvent)=>{
@@ -121,8 +137,8 @@ class Point extends Shape {
         }
 
         capture = this;
-        this.down_point = get_svg_point(ev);
         this.circle.setPointerCapture(ev.pointerId);
+        this.down_pos = get_svg_point(ev);
         console.log("handle pointer down");
     }
 
@@ -136,11 +152,11 @@ class Point extends Shape {
         }
         console.log("handle pointer move");
 
-        var pt = get_svg_point(ev);
-        this.set_pos(pt);
+        this.pos = get_svg_point(ev);
+        this.set_pos();
 
         for(let handle_move of this.handle_moves){
-            handle_move(this, ev, pt);
+            handle_move(this, ev, this.pos);
         }
     }
 
@@ -153,15 +169,13 @@ class Point extends Shape {
 
         this.circle.releasePointerCapture(ev.pointerId);
         capture = null;
-        this.down_point = null;
 
-        var pt = get_svg_point(ev);
-        this.set_pos(pt);
+        this.pos = get_svg_point(ev);
+        this.set_pos();
     }
 }
 
 class LineSegment extends Shape {    
-    points : Array<Vec2> = [];
     line : SVGLineElement;
 
     constructor(){
@@ -185,27 +199,16 @@ class LineSegment extends Shape {
     }
 
     click =(ev: MouseEvent, pt:Vec2): void => {
-        var handle = get_point(ev);
-        if(handle == null){
-
-            handle = new Point(pt, [this.handle_move]);
-        }
-        else{
-            svg.appendChild( svg.removeChild(handle.circle) );
-            handle.handle_moves.push(this.handle_move);
-        }
-        this.handles.push(handle);
+        this.add_handle(ev, pt);
 
         this.line.setAttribute("x2", "" + pt.x);
         this.line.setAttribute("y2", "" + pt.y);
-        if(this.points.length == 0){
+        if(this.handles.length == 1){
 
             this.line.setAttribute("x1", "" + pt.x);
             this.line.setAttribute("y1", "" + pt.y);
             this.line.setAttribute("stroke", "navy");
             this.line.setAttribute("stroke-width", to_svg(3));
-            
-            this.points.push(pt);
         }
         else{
             tool = null;
@@ -251,7 +254,6 @@ function get_rect_pos(pt1: Vec2, pt2: Vec2){
 }
 
 class Rect extends Shape {    
-    points : Array<Vec2> = [];
     rect : SVGRectElement;
 
     constructor(){
@@ -269,17 +271,13 @@ class Rect extends Shape {
     }
 
     handle_move =(handle: Point, ev:PointerEvent, pt: Vec2)=>{
-        var idx = this.handles.indexOf(handle);
-        this.points[idx] = pt;
-        this.set_rect_pos(this.points[0], this.points[1]);
+        this.set_rect_pos(this.handles[0].pos, this.handles[1].pos);
     }
 
     click =(ev: MouseEvent, pt:Vec2): void =>{
-        this.handles.push( new Point(pt, [this.handle_move]) );
+        this.add_handle(ev, pt);
 
-        this.points.push(pt);
-
-        if(this.points.length == 1){
+        if(this.handles.length == 1){
 
             this.rect.setAttribute("x", "" + pt.x);
             this.rect.setAttribute("y", "" + pt.y);
@@ -292,84 +290,81 @@ class Rect extends Shape {
             svg.appendChild(this.rect);    
         }
         else{
-            this.set_rect_pos(this.points[0], this.points[1]);
+            this.set_rect_pos(this.handles[0].pos, this.handles[1].pos);
 
             tool = null;
         }    
     }
 
     pointermove =(ev: PointerEvent) : void =>{
+        if(ev.target != null && ev.target.constructor.name == "SVGCircleElement"){
+            return;
+        }
+
         var pt = get_svg_point(ev);
 
-        this.set_rect_pos(this.points[0], pt);
+        this.set_rect_pos(this.handles[0].pos, pt);
     }
 }
 
 class Circle extends Shape {
-    points : Array<Vec2> = [];
     circle: SVGCircleElement;
+    radius: number = parseInt(to_svg(1), 10);
 
     constructor(){
         super();
         this.circle = document.createElementNS("http://www.w3.org/2000/svg","circle");
+        svg.appendChild(this.circle);    
     }
 
-    set_point(idx: number, pt: Vec2){
-
+    set_radius(pt: Vec2){
+        this.radius = this.handles[0].pos.dist(pt);
+        this.circle!.setAttribute("r", "" +  this.radius );
     }
 
     handle_move =(handle: Point, ev:PointerEvent, pt: Vec2)=>{
         var idx = this.handles.indexOf(handle);
         
-        var old_pt = this.points[idx];
-        this.points[idx] = pt;
-
         if(idx == 0){
 
             this.circle.setAttribute("cx", "" + pt.x);
             this.circle.setAttribute("cy", "" + pt.y);
 
-            this.points[1].x += pt.x - old_pt.x;
-            this.points[1].y += pt.y - old_pt.y;
-
-            this.handles[1].set_pos(this.points[1]);
+            this.set_radius(this.handles[1].pos);
         }
         else{
 
-            var r = this.points[0].dist(pt);
-            this.circle!.setAttribute("r", "" +  r );
+            this.set_radius(pt);
         }
     }
 
     click =(ev: MouseEvent, pt:Vec2): void =>{
-        if(this.points.length == 0){
+        this.add_handle(ev, pt);
+
+        if(this.handles.length == 1){
 
             this.circle.setAttribute("cx", "" + pt.x);
             this.circle.setAttribute("cy", "" + pt.y);
-            this.circle.setAttribute("r", to_svg(1));
+            this.circle.setAttribute("r", "" + this.radius);
             this.circle.setAttribute("fill", "transparent");
             this.circle.setAttribute("stroke", "navy");
-            this.circle.setAttribute("stroke-width", to_svg(3));
-        
-            svg.appendChild(this.circle);    
+            this.circle.setAttribute("stroke-width", to_svg(3));        
         }
         else{
-            var r = this.points[0].dist(pt);
-            this.circle!.setAttribute("r", "" +  r );
+            this.set_radius(pt);
     
             tool = null;
         }
-
-        this.points.push(pt);
-    
-        this.handles.push( new Point(pt, [this.handle_move]) );
     }
 
     pointermove =(ev: PointerEvent) : void =>{
+        if(ev.target != null && ev.target.constructor.name == "SVGCircleElement"){
+            return;
+        }
+
         var pt = get_svg_point(ev);
 
-        var r = this.points[0].dist(pt);
-        this.circle!.setAttribute("r", "" +  r );
+        this.set_radius(pt);
     }
 }
 
@@ -439,7 +434,6 @@ class Triangle extends Shape {
 class TextBox extends Shape {
     static dialog : HTMLDialogElement;
     static text_box : TextBox;    
-    down_point : Vec2 | null = null;
     rect   : SVGRectElement;
     div : HTMLDivElement | null = null;
     x : number = 0;
@@ -473,8 +467,6 @@ class TextBox extends Shape {
     }
 
     click =(ev: MouseEvent, pt:Vec2) : void =>{
-        this.down_point = pt;
-
         this.rect.setAttribute("x", "" + pt.x);
         this.rect.setAttribute("y", "" + pt.y);
         this.rect.setAttribute("width", to_svg(1));
