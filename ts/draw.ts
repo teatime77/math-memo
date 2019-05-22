@@ -11,16 +11,48 @@ class Path {
 class Vec2 {
     x: number;
     y: number;
+
     constructor(x:number, y: number){
         this.x = x;
         this.y = y;
     }
 
-    dist(pt:Vec2){
+    add(pt: Vec2) : Vec2{
+        return new Vec2(this.x + pt.x, this.y + pt.y);
+    }
+
+    sub(pt: Vec2) : Vec2{
+        return new Vec2(this.x - pt.x, this.y - pt.y);
+    }
+
+    mul(c: number) : Vec2 {
+        return new Vec2(c * this.x, c * this.y);
+    }
+
+    len(): number {
+        return Math.sqrt(this.x * this.x + this.y * this.y);
+    }
+
+    dist(pt:Vec2) : number {
         var dx = pt.x - this.x;
         var dy = pt.y - this.y;
 
         return Math.sqrt(dx * dx + dy * dy);
+    }
+
+    dot(pt:Vec2) : number{
+        return this.x * pt.x + this.y * pt.y;
+    }
+
+    unit() : Vec2{
+        var d = this.len();
+
+        if(d == 0){
+
+            return new Vec2(0, 0);
+        }
+
+        return new Vec2(this.x / d, this.y / d);
     }
 }
 
@@ -172,6 +204,10 @@ class Point extends Shape {
 
         this.pos = get_svg_point(ev);
         this.set_pos();
+
+        for(let handle_move of this.handle_moves){
+            handle_move(this, ev, this.pos);
+        }
     }
 }
 
@@ -227,70 +263,117 @@ class LineSegment extends Shape {
     }
 }
 
-function get_rect_pos(pt1: Vec2, pt2: Vec2){
-    var x1, y1, x2, y2;
-
-    if(pt1.x <= pt2.x){
-        x1 = pt1.x;
-        x2 = pt2.x;
-    }
-    else{
-
-        x1 = pt2.x;
-        x2 = pt1.x;
-    }
-
-    if(pt1.y <= pt2.y){
-        y1 = pt1.y;
-        y2 = pt2.y;
-    }
-    else{
-
-        y1 = pt2.y;
-        y2 = pt1.y;
-    }
-
-    return [x1, y1, x2, y2];
-}
-
-class Rect extends Shape {    
-    rect : SVGRectElement;
+class Rect extends Shape {
+    lines : SVGLineElement[];
+    h : number = -1;
 
     constructor(){
         super();
-        this.rect = document.createElementNS("http://www.w3.org/2000/svg","rect");
+        this.lines = [];
+        for(let i = 0; i < 4; i++){
+            var line = document.createElementNS("http://www.w3.org/2000/svg","line");
+            line.setAttribute("stroke", "navy");
+            line.setAttribute("stroke-width", to_svg(3));
+            this.lines.push(line);
+            svg.appendChild(line);
+        }
     }
 
-    set_rect_pos(pt1: Vec2, pt2: Vec2){
-        let [x1, y1, x2, y2] = get_rect_pos(pt1, pt2);
+    set_rect_pos(pt: Vec2|null, idx: number){
+        console.assert(pt != null || this.handles.length == 3);
 
-        this.rect.setAttribute("x", "" + x1);
-        this.rect.setAttribute("y", "" + y1);
-        this.rect.setAttribute("width" , `${x2 - x1}`);
-        this.rect.setAttribute("height", `${y2 - y1}`);
+        var line0 = this.lines[0];
+
+        var p1 = this.handles[0].pos; 
+        line0.setAttribute("x1", "" + p1.x);
+        line0.setAttribute("y1", "" + p1.y);
+
+        if(this.handles.length == 1){
+
+            line0.setAttribute("x2", "" + pt!.x);
+            line0.setAttribute("y2", "" + pt!.y);
+            return;
+        }
+
+        var p2 = this.handles[1].pos; 
+        line0.setAttribute("x2", "" + p2.x);
+        line0.setAttribute("y2", "" + p2.y);
+
+        var line1 = this.lines[1];
+        line1.setAttribute("x1", "" + p2.x);
+        line1.setAttribute("y1", "" + p2.y);
+
+        var p12 = p2.sub(p1);
+
+        var e = (new Vec2(- p12.y, p12.x)).unit();
+
+        var h;
+        if(this.h == -1 || idx == 2){
+
+            var pa;
+            if(this.handles.length == 2){
+    
+                pa = pt!;
+    
+            }
+            else{
+    
+                pa = this.handles[2].pos; 
+            }
+    
+            var p0a = pa.sub(p1);
+            h = e.dot(p0a);
+
+            if(this.handles.length == 3){
+                this.h = h;
+            }
+        }
+        else{
+            h = this.h;
+        }
+
+        var p32 = e.mul(h);
+        var p3 = p2.add(p32);
+
+        line1.setAttribute("x2", "" + p3.x);
+        line1.setAttribute("y2", "" + p3.y);
+
+        var p4 = p3.add(p1.sub(p2));
+
+        var line2 = this.lines[2];
+        line2.setAttribute("x1", "" + p3.x);
+        line2.setAttribute("y1", "" + p3.y);
+
+        line2.setAttribute("x2", "" + p4.x);
+        line2.setAttribute("y2", "" + p4.y);
+
+        var line3 = this.lines[3];
+        line3.setAttribute("x1", "" + p4.x);
+        line3.setAttribute("y1", "" + p4.y);
+
+        line3.setAttribute("x2", "" + p1.x);
+        line3.setAttribute("y2", "" + p1.y);
+
+        if(this.handles.length == 2){
+
+            return;
+        }
+
+        this.handles[2].pos = p3;
+        this.handles[2].set_pos();
     }
 
     handle_move =(handle: Point, ev:PointerEvent, pt: Vec2)=>{
-        this.set_rect_pos(this.handles[0].pos, this.handles[1].pos);
+        var idx = this.handles.indexOf(handle);
+        this.set_rect_pos(null, idx);
     }
 
     click =(ev: MouseEvent, pt:Vec2): void =>{
         this.add_handle(ev, pt);
 
-        if(this.handles.length == 1){
+        this.set_rect_pos(pt, -1);
 
-            this.rect.setAttribute("x", "" + pt.x);
-            this.rect.setAttribute("y", "" + pt.y);
-            this.rect.setAttribute("width", to_svg(1));
-            this.rect.setAttribute("height", to_svg(1));
-            this.rect.setAttribute("fill", "transparent");
-            this.rect.setAttribute("stroke", "navy");
-            this.rect.setAttribute("stroke-width", to_svg(3));
-            
-            svg.appendChild(this.rect);    
-        }
-        else{
-            this.set_rect_pos(this.handles[0].pos, this.handles[1].pos);
+        if(this.handles.length == 3){
 
             tool = null;
         }    
@@ -303,7 +386,7 @@ class Rect extends Shape {
 
         var pt = get_svg_point(ev);
 
-        this.set_rect_pos(this.handles[0].pos, pt);
+        this.set_rect_pos(pt, -1);
     }
 }
 
