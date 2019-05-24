@@ -76,6 +76,8 @@ function OrderPoints(p1:Vec2, p2:Vec2){
 }
 
 var svg : SVGSVGElement;
+var G1 : SVGGElement;
+var G2 : SVGGElement;
 
 var CTM : DOMMatrix;
 var CTMInv : DOMMatrix;
@@ -118,7 +120,6 @@ abstract class Shape {
             handle = new Point(pt, [this.handle_move]);
         }
         else{
-            svg.appendChild( svg.removeChild(handle.circle) );
             handle.handle_moves.push(this.handle_move);
         }
         this.handles.push(handle);
@@ -153,7 +154,7 @@ class Point extends Shape {
         this.pos = pt;
         this.set_pos();
     
-        svg.appendChild(this.circle);
+        G2.appendChild(this.circle);
 
         this.handle_moves = handle_moves;
     }
@@ -217,7 +218,7 @@ class LineSegment extends Shape {
     constructor(){
         super();
         this.line = document.createElementNS("http://www.w3.org/2000/svg","line");
-        svg.appendChild(this.line);
+        G1.appendChild(this.line);
     }
 
     handle_move =(handle: Point, ev:PointerEvent, pt: Vec2)=>{
@@ -252,10 +253,6 @@ class LineSegment extends Shape {
     }
 
     pointermove =(ev: PointerEvent) : void =>{
-        if(ev.target != null && ev.target.constructor.name == "SVGCircleElement"){
-            return;
-        }
-
         var pt = get_svg_point(ev);
 
         this.line!.setAttribute("x2", "" + pt.x);
@@ -275,7 +272,7 @@ class Rect extends Shape {
             line.setAttribute("stroke", "navy");
             line.setAttribute("stroke-width", to_svg(3));
             this.lines.push(line);
-            svg.appendChild(line);
+            G1.appendChild(line);
         }
     }
 
@@ -380,10 +377,6 @@ class Rect extends Shape {
     }
 
     pointermove =(ev: PointerEvent) : void =>{
-        if(ev.target != null && ev.target.constructor.name == "SVGCircleElement"){
-            return;
-        }
-
         var pt = get_svg_point(ev);
 
         this.set_rect_pos(pt, -1);
@@ -397,7 +390,7 @@ class Circle extends Shape {
     constructor(){
         super();
         this.circle = document.createElementNS("http://www.w3.org/2000/svg","circle");
-        svg.appendChild(this.circle);    
+        G1.appendChild(this.circle);    
     }
 
     set_radius(pt: Vec2){
@@ -441,10 +434,6 @@ class Circle extends Shape {
     }
 
     pointermove =(ev: PointerEvent) : void =>{
-        if(ev.target != null && ev.target.constructor.name == "SVGCircleElement"){
-            return;
-        }
-
         var pt = get_svg_point(ev);
 
         this.set_radius(pt);
@@ -499,7 +488,7 @@ class Triangle extends Shape {
             tool = null;
         }    
 
-        svg.appendChild(line);
+        G1.appendChild(line);
 
         this.lines.push(line);
         this.points.push(pt);        
@@ -558,7 +547,7 @@ class TextBox extends Shape {
         this.rect.setAttribute("stroke", "navy");
         this.rect.setAttribute("stroke-width", to_svg(3));
 
-        svg.appendChild(this.rect);
+        G1.appendChild(this.rect);
 
         var ev = window.event as MouseEvent;
 
@@ -641,6 +630,11 @@ export function init_draw(){
 
     var rc = svg.getBoundingClientRect() as DOMRect;
     svg_ratio = svg.viewBox.baseVal.width / rc.width;
+
+    G1 = document.createElementNS("http://www.w3.org/2000/svg","g");
+    G2 = document.createElementNS("http://www.w3.org/2000/svg","g");
+    svg.appendChild(G1);
+    svg.appendChild(G2);
 
     svg.addEventListener("click", svg_click);
     svg.addEventListener("pointermove", svg_pointermove);
