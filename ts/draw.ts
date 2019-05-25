@@ -114,14 +114,18 @@ abstract class Tool {
     click =(ev: MouseEvent, pt:Vec2): void => {}
     pointermove = (ev: PointerEvent) : void => {}
 
-    add_handle(ev: MouseEvent, pt:Vec2) : Point{
+    add_handle(ev: MouseEvent, pt:Vec2, use_this_handle_move: boolean = true) : Point{
         var handle = get_point(ev);
         if(handle == null){
 
-            handle = new Point(pt, [this.handle_move]);
+            handle = new Point(pt);
         }
         else{
             handle.select(true);
+        }
+
+        if(use_this_handle_move){
+
             handle.handle_moves.push(this.handle_move);
         }
         this.handles.push(handle);
@@ -217,9 +221,9 @@ class Point extends Shape {
         console.log("handle pointer down");
     }
 
-    propagate(ev: PointerEvent){
+    propagate(){
         for(let handle_move of this.handle_moves){
-            handle_move(this, ev, this.pos);
+            handle_move(this, this.pos);
         }
     }
 
@@ -236,7 +240,7 @@ class Point extends Shape {
         this.pos = get_svg_point(ev);
         this.set_pos();
 
-        this.propagate(ev);
+        this.propagate();
     }
 
     pointerup =(ev: PointerEvent)=>{
@@ -253,7 +257,7 @@ class Point extends Shape {
         this.set_pos();
 
         for(let handle_move of this.handle_moves){
-            handle_move(this, ev, this.pos);
+            handle_move(this, this.pos);
         }
     }
 }
@@ -282,6 +286,16 @@ class LineSegment extends Shape {
 
         this.line.setAttribute("x2", "" + p2.x);
         this.line.setAttribute("y2", "" + p2.y);
+
+        if(this.handles.length != 0){
+            this.handles[0].pos = p1;
+            this.handles[0].propagate();
+
+            if(this.handles.length != 1){
+                this.handles[1].pos = p2;
+                this.handles[1]
+            }
+        }
     }
 
     update_pos(){
@@ -300,7 +314,7 @@ class LineSegment extends Shape {
         }
     }
 
-    handle_move =(handle: Point, ev:PointerEvent, pt: Vec2)=>{
+    handle_move =(handle: Point, pt: Vec2)=>{
         var idx = this.handles.indexOf(handle);
         if(idx == 0){
 
@@ -337,30 +351,30 @@ class LineSegment extends Shape {
     }
 }
 
-class Rect extends Shape {
+class Rect extends Tool {
     is_square: boolean;
-    lines : SVGLineElement[];
+    lines : Array<LineSegment> = [];
     h : number = -1;
+    in_set_rect_pos : boolean = false;
 
     constructor(is_square: boolean){
         super();
         this.is_square = is_square;
-        this.lines = [];
-        for(let i = 0; i < 4; i++){
-            var line = document.createElementNS("http://www.w3.org/2000/svg","line");
-            line.setAttribute("stroke", "navy");
-            line.setAttribute("stroke-width", to_svg(3));
+
+        for(var i = 0; i < 4; i++){
+
+            var line = new LineSegment();
             this.lines.push(line);
-            G1.appendChild(line);
         }
     }
 
     set_rect_pos(pt: Vec2, idx: number){
-        var line1 = this.lines[0];
+        if(this.in_set_rect_pos){
+            return;
+        }
+        this.in_set_rect_pos = true;
 
         var p1 = this.handles[0].pos; 
-        line1.setAttribute("x1", "" + p1.x);
-        line1.setAttribute("y1", "" + p1.y);
 
         var p2;
 
@@ -372,13 +386,6 @@ class Rect extends Shape {
 
             p2 = this.handles[1].pos; 
         }
-
-        line1.setAttribute("x2", "" + p2.x);
-        line1.setAttribute("y2", "" + p2.y);
-
-        var line2 = this.lines[1];
-        line2.setAttribute("x1", "" + p2.x);
-        line2.setAttribute("y1", "" + p2.y);
 
         var p12 = p2.sub(p1);
 
@@ -418,36 +425,25 @@ class Rect extends Shape {
 
         var eh = e.mul(h);
         var p3 = p2.add(eh);
-
-        line2.setAttribute("x2", "" + p3.x);
-        line2.setAttribute("y2", "" + p3.y);
-
         var p4 = p3.add(p1.sub(p2));
 
-        var line3 = this.lines[2];
-        line3.setAttribute("x1", "" + p3.x);
-        line3.setAttribute("y1", "" + p3.y);
+        this.lines[0].set_poins(p1, p2);
+        this.lines[1].set_poins(p2, p3);
+        this.lines[2].set_poins(p3, p4);
+        this.lines[3].set_poins(p4, p1);
 
-        line3.setAttribute("x2", "" + p4.x);
-        line3.setAttribute("y2", "" + p4.y);
+        if(this.handles.length == 3){
 
-        var line4 = this.lines[3];
-        line4.setAttribute("x1", "" + p4.x);
-        line4.setAttribute("y1", "" + p4.y);
-
-        line4.setAttribute("x2", "" + p1.x);
-        line4.setAttribute("y2", "" + p1.y);
-
-        if(this.is_square || this.handles.length < 3){
-
-            return;
+            this.handles[2].pos = p3;
+            this.handles[2].set_pos();
+    
+            this.handles[2].propagate();    
         }
 
-        this.handles[2].pos = p3;
-        this.handles[2].set_pos();
+        this.in_set_rect_pos = false;
     }
 
-    handle_move =(handle: Point, ev:PointerEvent, pt: Vec2)=>{
+    handle_move =(handle: Point, pt: Vec2)=>{
         var idx = this.handles.indexOf(handle);
         this.set_rect_pos(pt, idx);
     }
@@ -485,7 +481,7 @@ class Circle extends Shape {
         this.circle!.setAttribute("r", "" +  this.radius );
     }
 
-    handle_move =(handle: Point, ev:PointerEvent, pt: Vec2)=>{
+    handle_move =(handle: Point, pt: Vec2)=>{
         var idx = this.handles.indexOf(handle);
         
         if(idx == 0){
@@ -636,11 +632,11 @@ class Midpoint extends Tool {
         return new Vec2((p1.x + p2.x)/2, (p1.y + p2.y)/2);
     }
 
-    handle_move =(handle: Point, ev:PointerEvent, pt: Vec2)=>{
+    handle_move =(handle: Point, pt: Vec2)=>{
         this.midpoint!.pos = this.calc_midpoint();
         this.midpoint!.set_pos();
 
-        this.midpoint!.propagate(ev);
+        this.midpoint!.propagate();
     }
 
     click =(ev: MouseEvent, pt:Vec2): void => {
@@ -648,7 +644,7 @@ class Midpoint extends Tool {
 
         if(this.handles.length == 2){
 
-            this.midpoint = new Point( this.calc_midpoint() );//, [this.handle_move]);
+            this.midpoint = new Point( this.calc_midpoint() );
 
             clear_tool();
         }
@@ -674,11 +670,11 @@ class Perpendicular extends Tool {
         return foot;
     }
 
-    handle_move =(handle: Point, ev:PointerEvent, pt: Vec2)=>{
+    handle_move =(handle: Point, pt: Vec2)=>{
         this.foot!.pos = this.calc_foot_of_perpendicular();
         this.foot!.set_pos();
 
-        this.foot!.propagate(ev);
+        this.foot!.propagate();
 
         this.perpendicular!.set_poins(this.handles[0].pos, this.foot!.pos);
     }
