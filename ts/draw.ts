@@ -106,16 +106,13 @@ function get_svg_point(ev: MouseEvent | PointerEvent){
 
 var tool_type = "line-segment";
 
-abstract class Shape {
+
+abstract class Tool {
     handles : Point[] = [];
     handle_move:any;
 
     click =(ev: MouseEvent, pt:Vec2): void => {}
     pointermove = (ev: PointerEvent) : void => {}
-
-    constructor(){
-        shapes.push(this);
-    }
 
     add_handle(ev: MouseEvent, pt:Vec2){
         var handle = get_point(ev);
@@ -124,13 +121,34 @@ abstract class Shape {
             handle = new Point(pt, [this.handle_move]);
         }
         else{
+            handle.select(true);
             handle.handle_moves.push(this.handle_move);
         }
         this.handles.push(handle);
     }
 }
 
+abstract class Shape extends Tool {
+
+    constructor(){
+        super();
+        shapes.push(this);
+    }
+
+    select(selected: boolean){
+    }
+}
+
 var shapes: Shape[] = [];
+var selected_shapes: Shape[] = [];
+
+function clear_tool(){
+    for(let x of selected_shapes){
+        x.select(false);
+    }
+    selected_shapes = [];
+    tool = null;
+}
 
 function get_point(ev: MouseEvent) : Point | null{
     var pt = shapes.find(x => x.constructor.name == "Point" && (x as Point).circle == ev.target) as (Point|undefined);
@@ -168,6 +186,19 @@ class Point extends Shape {
         this.circle.setAttribute("cy", "" + this.pos.y);
     }
 
+    select(selected: boolean){
+        if(selected){
+            if(! selected_shapes.includes(this)){
+                selected_shapes.push(this);
+                this.circle.setAttribute("fill", "orange");
+            }
+        }
+        else{
+
+            this.circle.setAttribute("fill", "blue");
+        }
+    }
+
     pointerdown =(ev: PointerEvent)=>{
         if(tool_type != "select"){
             return;
@@ -177,6 +208,12 @@ class Point extends Shape {
         this.circle.setPointerCapture(ev.pointerId);
         this.down_pos = get_svg_point(ev);
         console.log("handle pointer down");
+    }
+
+    propagate(ev: PointerEvent){
+        for(let handle_move of this.handle_moves){
+            handle_move(this, ev, this.pos);
+        }
     }
 
     pointermove =(ev: PointerEvent)=>{
@@ -192,9 +229,7 @@ class Point extends Shape {
         this.pos = get_svg_point(ev);
         this.set_pos();
 
-        for(let handle_move of this.handle_moves){
-            handle_move(this, ev, this.pos);
-        }
+        this.propagate(ev);
     }
 
     pointerup =(ev: PointerEvent)=>{
@@ -252,7 +287,7 @@ class LineSegment extends Shape {
             this.line.setAttribute("stroke-width", to_svg(3));
         }
         else{
-            tool = null;
+            clear_tool();
         }    
     }
 
@@ -386,7 +421,7 @@ class Rect extends Shape {
 
         if(this.is_square && this.handles.length == 2 || this.handles.length == 3){
 
-            tool = null;
+            clear_tool();
         }    
     }
 
@@ -443,7 +478,7 @@ class Circle extends Shape {
         else{
             this.set_radius(pt);
     
-            tool = null;
+            clear_tool();
         }
     }
 
@@ -474,7 +509,7 @@ class Triangle extends Shape {
     }
 
     click =(ev: MouseEvent, pt:Vec2): void =>{
-        this.handles.push( new Point(pt, [this.handle_move]) );
+        this.add_handle(ev, pt);
 
         if(this.lines.length != 0){
 
@@ -499,7 +534,7 @@ class Triangle extends Shape {
             line.setAttribute("x2", "" + this.points[0].x);
             line.setAttribute("y2", "" + this.points[0].y);
     
-            tool = null;
+            clear_tool();
         }    
 
         G1.appendChild(line);
@@ -573,11 +608,40 @@ class TextBox extends Shape {
         document.body.appendChild(this.div);
 
         TextBox.dialog.showModal();
-        tool = null;
+        clear_tool();
     }
 }
 
-var tool : Shape | null = null;
+class Midpoint extends Tool {
+    midpoint : Point | null = null;
+
+    calc_midpoint(){
+        var p1 = this.handles[0].pos;
+        var p2 = this.handles[1].pos;
+
+        return new Vec2((p1.x + p2.x)/2, (p1.y + p2.y)/2);
+    }
+
+    handle_move =(handle: Point, ev:PointerEvent, pt: Vec2)=>{
+        this.midpoint!.pos = this.calc_midpoint();
+        this.midpoint!.set_pos();
+
+        this.midpoint!.propagate(ev);
+    }
+
+    click =(ev: MouseEvent, pt:Vec2): void => {
+        this.add_handle(ev, pt);
+
+        if(this.handles.length == 2){
+
+            this.midpoint = new Point( this.calc_midpoint() );//, [this.handle_move]);
+
+            clear_tool();
+        }
+    }
+}
+
+var tool : Tool | null = null;
 
 function tool_click(){
     tool_type = (document.querySelector('input[name="tool-type"]:checked') as HTMLInputElement).value;  
@@ -596,6 +660,10 @@ function svg_click(ev: MouseEvent){
             new Point(pt);
             break;
 
+            case "midpoint":
+            tool = new Midpoint();
+            break;
+    
             case "line-segment":
             tool = new LineSegment();
             break;
