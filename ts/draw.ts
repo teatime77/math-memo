@@ -114,7 +114,7 @@ abstract class Tool {
     click =(ev: MouseEvent, pt:Vec2): void => {}
     pointermove = (ev: PointerEvent) : void => {}
 
-    add_handle(ev: MouseEvent, pt:Vec2){
+    add_handle(ev: MouseEvent, pt:Vec2) : Point{
         var handle = get_point(ev);
         if(handle == null){
 
@@ -125,6 +125,8 @@ abstract class Tool {
             handle.handle_moves.push(this.handle_move);
         }
         this.handles.push(handle);
+
+        return handle;
     }
 }
 
@@ -280,6 +282,22 @@ class LineSegment extends Shape {
 
         this.line.setAttribute("x2", "" + p2.x);
         this.line.setAttribute("y2", "" + p2.y);
+    }
+
+    update_pos(){
+        this.line.setAttribute("x1", "" + this.handles[0].pos.x);
+        this.line.setAttribute("y1", "" + this.handles[0].pos.y);
+
+        if(this.handles.length == 1){
+
+            this.line.setAttribute("x2", "" + this.handles[0].pos.x);
+            this.line.setAttribute("y2", "" + this.handles[0].pos.y);
+        }
+        else{
+
+            this.line.setAttribute("x2", "" + this.handles[1].pos.x);
+            this.line.setAttribute("y2", "" + this.handles[1].pos.y);
+        }
     }
 
     handle_move =(handle: Point, ev:PointerEvent, pt: Vec2)=>{
@@ -509,66 +527,42 @@ class Circle extends Shape {
     }
 }
 
-
-class Triangle extends Shape {
-    points : Array<Vec2> = [];
-    lines : Array<SVGLineElement> = [];
-
-    constructor(){
-        super();
-    }
-
-    handle_move =(handle: Point, ev:PointerEvent, pt: Vec2)=>{
-        var idx = this.handles.indexOf(handle);
-        this.lines[idx].setAttribute("x1", "" + pt.x);
-        this.lines[idx].setAttribute("y1", "" + pt.y);
-
-        var idx2 = (idx + 2) % 3;
-        this.lines[idx2].setAttribute("x2", "" + pt.x);
-        this.lines[idx2].setAttribute("y2", "" + pt.y);
-    }
+class Triangle extends Tool {
+    lines : Array<LineSegment> = [];
 
     click =(ev: MouseEvent, pt:Vec2): void =>{
-        this.add_handle(ev, pt);
+        var line = new LineSegment();
 
-        if(this.lines.length != 0){
-
-            var last_line = array_last(this.lines);
-            last_line.setAttribute("x2", "" + pt.x);
-            last_line.setAttribute("y2", "" + pt.y);
-        }           
-
-        var line = document.createElementNS("http://www.w3.org/2000/svg","line");
-
-        line.setAttribute("stroke", "navy");
-        line.setAttribute("stroke-width", to_svg(3));
-
-        line.setAttribute("x1", "" + pt.x);
-        line.setAttribute("y1", "" + pt.y);
-
-        if(this.lines.length != 2){
-            line.setAttribute("x2", "" + pt.x);
-            line.setAttribute("y2", "" + pt.y);
+        if(this.lines.length == 0){
+            line.add_handle(ev, pt);
         }
         else{
-            line.setAttribute("x2", "" + this.points[0].x);
-            line.setAttribute("y2", "" + this.points[0].y);
-    
-            clear_tool();
-        }    
 
-        G1.appendChild(line);
+            var last_line = array_last(this.lines);
+            var handle = last_line.add_handle(ev, pt);
+            last_line.update_pos();
+
+            line.handles.push(handle);
+            handle.handle_moves.push(line.handle_move);
+        }
+
+        if(this.lines.length == 2){
+
+            var handle1 = this.lines[0].handles[0];
+
+            line.handles.push(handle1);
+            handle1.handle_moves.push(line.handle_move);
+
+            clear_tool();
+        }
 
         this.lines.push(line);
-        this.points.push(pt);        
+        line.update_pos();
     }
 
     pointermove =(ev: PointerEvent) : void =>{
-        var pt = get_svg_point(ev);
-
         var last_line = array_last(this.lines);
-        last_line.setAttribute("x2", "" + pt.x);
-        last_line.setAttribute("y2", "" + pt.y);
+        last_line.pointermove(ev);
     }
 }
 
