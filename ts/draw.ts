@@ -155,6 +155,11 @@ function get_point(ev: MouseEvent) : Point | null{
     return pt == undefined ? null : pt;
 }
 
+function get_line(ev: MouseEvent) : LineSegment | null{
+    var line = shapes.find(x => x.constructor.name == "LineSegment" && (x as LineSegment).line == ev.target) as (LineSegment|undefined);
+    return line == undefined ? null : line;
+}
+
 
 class Point extends Shape {
     pos : Vec2;
@@ -254,10 +259,27 @@ class Point extends Shape {
 class LineSegment extends Shape {    
     line : SVGLineElement;
 
-    constructor(){
+    constructor(p1:Vec2|null=null, p2:Vec2|null=null){
         super();
         this.line = document.createElementNS("http://www.w3.org/2000/svg","line");
+        this.line.setAttribute("stroke", "navy");
+        this.line.setAttribute("stroke-width", to_svg(3));
+        this.line.style.cursor = "move";
+
+        if(p1 != null && p2 != null){
+
+            this.set_poins(p1, p2);
+        }
+
         G1.appendChild(this.line);
+    }
+
+    set_poins(p1:Vec2, p2:Vec2){
+        this.line.setAttribute("x1", "" + p1.x);
+        this.line.setAttribute("y1", "" + p1.y);
+
+        this.line.setAttribute("x2", "" + p2.x);
+        this.line.setAttribute("y2", "" + p2.y);
     }
 
     handle_move =(handle: Point, ev:PointerEvent, pt: Vec2)=>{
@@ -283,8 +305,6 @@ class LineSegment extends Shape {
 
             this.line.setAttribute("x1", "" + pt.x);
             this.line.setAttribute("y1", "" + pt.y);
-            this.line.setAttribute("stroke", "navy");
-            this.line.setAttribute("stroke-width", to_svg(3));
         }
         else{
             clear_tool();
@@ -641,6 +661,58 @@ class Midpoint extends Tool {
     }
 }
 
+
+class Perpendicular extends Tool {
+    line : LineSegment | null = null;
+    foot : Point | null = null;
+    perpendicular : LineSegment | null = null;
+
+    calc_foot_of_perpendicular(){
+        var p1 = this.line!.handles[0].pos;
+        var p2 = this.line!.handles[1].pos;
+
+        var e = p2.sub(p1).unit();
+        var v = this.handles[0].pos.sub(p1);
+        var h = e.dot(v);
+
+        var foot = p1.add(e.mul(h));
+
+        return foot;
+    }
+
+    handle_move =(handle: Point, ev:PointerEvent, pt: Vec2)=>{
+        this.foot!.pos = this.calc_foot_of_perpendicular();
+        this.foot!.set_pos();
+
+        this.foot!.propagate(ev);
+
+        this.perpendicular!.set_poins(this.handles[0].pos, this.foot!.pos);
+    }
+
+    click =(ev: MouseEvent, pt:Vec2): void => {
+        if(this.handles.length == 0){
+
+            this.add_handle(ev, pt);
+        }
+        else {
+
+            this.line = get_line(ev);
+            if(this.line == null){
+                return;
+            }
+
+            this.line.handles[0].handle_moves.push(this.handle_move);
+            this.line.handles[1].handle_moves.push(this.handle_move);
+
+            this.foot = new Point( this.calc_foot_of_perpendicular() );
+
+            this.perpendicular = new LineSegment(this.handles[0].pos, this.foot.pos);
+
+            clear_tool();
+        }
+    }
+}
+
 var tool : Tool | null = null;
 
 function tool_click(){
@@ -662,6 +734,10 @@ function svg_click(ev: MouseEvent){
 
             case "midpoint":
             tool = new Midpoint();
+            break;
+
+            case "perpendicular":
+            tool = new Perpendicular()
             break;
     
             case "line-segment":
