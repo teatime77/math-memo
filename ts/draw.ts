@@ -104,6 +104,19 @@ function get_svg_point(ev: MouseEvent | PointerEvent){
     return new Vec2(p.x, p.y);
 }
 
+function click_handle(ev: MouseEvent, pt:Vec2) : Point{
+    var handle = get_point(ev);
+    if(handle == null){
+
+        handle = new Point(pt);
+    }
+    else{
+        handle.select(true);
+    }
+
+    return handle;
+}
+
 var tool_type = "line-segment";
 
 
@@ -114,23 +127,13 @@ abstract class Tool {
     click =(ev: MouseEvent, pt:Vec2): void => {}
     pointermove = (ev: PointerEvent) : void => {}
 
-    add_handle(ev: MouseEvent, pt:Vec2, use_this_handle_move: boolean = true) : Point{
-        var handle = get_point(ev);
-        if(handle == null){
-
-            handle = new Point(pt);
-        }
-        else{
-            handle.select(true);
-        }
+    add_handle(handle: Point, use_this_handle_move: boolean = true){
 
         if(use_this_handle_move){
 
             handle.handle_moves.push(this.handle_move);
         }
         this.handles.push(handle);
-
-        return handle;
     }
 }
 
@@ -182,7 +185,7 @@ class Point extends Shape {
         this.circle.addEventListener("pointermove", this.pointermove);
         this.circle.addEventListener("pointerup", this.pointerup);
 
-        this.circle.style.cursor = "move";
+        this.circle.style.cursor = "pointer";
 
         this.pos = pt;
         this.set_pos();
@@ -329,7 +332,7 @@ class LineSegment extends Shape {
     }
 
     click =(ev: MouseEvent, pt:Vec2): void => {
-        this.add_handle(ev, pt);
+        this.add_handle(click_handle(ev, pt));
 
         this.line.setAttribute("x2", "" + pt.x);
         this.line.setAttribute("y2", "" + pt.y);
@@ -368,7 +371,7 @@ class Rect extends Tool {
         }
     }
 
-    set_rect_pos(pt: Vec2, idx: number){
+    set_rect_pos(pt: Vec2, idx: number, clicked:boolean){
         if(this.in_set_rect_pos){
             return;
         }
@@ -401,7 +404,7 @@ class Rect extends Tool {
             if(this.h == -1 || idx == 2){
 
                 var pa;
-                if(this.handles.length < 3){
+                if(this.handles.length < 4){
         
                     pa = pt;
         
@@ -414,7 +417,7 @@ class Rect extends Tool {
                 var p0a = pa.sub(p1);
                 h = e.dot(p0a);
     
-                if(this.handles.length == 3){
+                if(this.handles.length == 4){
                     this.h = h;
                 }
             }
@@ -427,17 +430,63 @@ class Rect extends Tool {
         var p3 = p2.add(eh);
         var p4 = p3.add(p1.sub(p2));
 
-        this.lines[0].set_poins(p1, p2);
-        this.lines[1].set_poins(p2, p3);
-        this.lines[2].set_poins(p3, p4);
-        this.lines[3].set_poins(p4, p1);
+        var line1 = this.lines[0];
+        line1.set_poins(p1, p2);
 
-        if(this.handles.length == 3){
+        var line2 = this.lines[1];
+        line2.set_poins(p2, p3);
+
+        var line3 = this.lines[2];
+        line3.set_poins(p3, p4);
+
+        var line4 = this.lines[3];
+        line4.set_poins(p4, p1);
+
+        if(clicked){
+            if(this.handles.length == 2 && this.is_square){
+                    
+                var handle3 = new Point(p3);
+                this.handles.push(handle3);
+            }
+
+            switch(this.handles.length){
+            case 1:
+                line1.add_handle(this.handles[0], false);
+                break;
+            case 2:
+                line1.add_handle(this.handles[1], false);
+                line2.add_handle(this.handles[1], false);
+                break;
+            case 3:
+                line2.add_handle(this.handles[2], false);
+
+                var handle4 = new Point(p4);
+                this.handles.push(handle4);
+
+                line3.add_handle(this.handles[2], false);
+                line3.add_handle(handle4, false);
+
+                line4.add_handle(handle4, false);
+                line4.add_handle(this.handles[0], false);
+                break;
+            }
+        }
+
+        if(3 <= this.handles.length){
 
             this.handles[2].pos = p3;
             this.handles[2].set_pos();
     
             this.handles[2].propagate();    
+
+            if(this.handles.length == 4){
+
+                this.handles[3].pos = p4;
+                this.handles[3].set_pos();
+        
+                this.handles[3].propagate();    
+            }
+    
         }
 
         this.in_set_rect_pos = false;
@@ -445,15 +494,15 @@ class Rect extends Tool {
 
     handle_move =(handle: Point, pt: Vec2)=>{
         var idx = this.handles.indexOf(handle);
-        this.set_rect_pos(pt, idx);
+        this.set_rect_pos(pt, idx, false);
     }
 
     click =(ev: MouseEvent, pt:Vec2): void =>{
-        this.add_handle(ev, pt);
+        this.add_handle(click_handle(ev, pt));
 
-        this.set_rect_pos(pt, -1);
+        this.set_rect_pos(pt, -1, true);
 
-        if(this.is_square && this.handles.length == 2 || this.handles.length == 3){
+        if(this.handles.length == 4){
 
             clear_tool();
         }    
@@ -462,7 +511,7 @@ class Rect extends Tool {
     pointermove =(ev: PointerEvent) : void =>{
         var pt = get_svg_point(ev);
 
-        this.set_rect_pos(pt, -1);
+        this.set_rect_pos(pt, -1, false);
     }
 }
 
@@ -498,7 +547,7 @@ class Circle extends Shape {
     }
 
     click =(ev: MouseEvent, pt:Vec2): void =>{
-        this.add_handle(ev, pt);
+        this.add_handle(click_handle(ev, pt));
 
         if(this.handles.length == 1){
 
@@ -530,24 +579,23 @@ class Triangle extends Tool {
         var line = new LineSegment();
 
         if(this.lines.length == 0){
-            line.add_handle(ev, pt);
+            line.add_handle(click_handle(ev, pt));
         }
         else{
 
             var last_line = array_last(this.lines);
-            var handle = last_line.add_handle(ev, pt);
+            var handle = click_handle(ev, pt);
+            last_line.add_handle(handle);
             last_line.update_pos();
 
-            line.handles.push(handle);
-            handle.handle_moves.push(line.handle_move);
+            line.add_handle(handle);
         }
 
         if(this.lines.length == 2){
 
             var handle1 = this.lines[0].handles[0];
 
-            line.handles.push(handle1);
-            handle1.handle_moves.push(line.handle_move);
+            line.add_handle(handle1);
 
             clear_tool();
         }
@@ -640,7 +688,7 @@ class Midpoint extends Tool {
     }
 
     click =(ev: MouseEvent, pt:Vec2): void => {
-        this.add_handle(ev, pt);
+        this.add_handle(click_handle(ev, pt));
 
         if(this.handles.length == 2){
 
@@ -682,7 +730,7 @@ class Perpendicular extends Tool {
     click =(ev: MouseEvent, pt:Vec2): void => {
         if(this.handles.length == 0){
 
-            this.add_handle(ev, pt);
+            this.add_handle(click_handle(ev, pt));
         }
         else {
 
