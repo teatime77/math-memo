@@ -17,6 +17,10 @@ class Vec2 {
         this.y = y;
     }
 
+    equals(pt: Vec2): boolean {
+        return this.x == pt.x && this.y == pt.y;
+    }
+
     add(pt: Vec2) : Vec2{
         return new Vec2(this.x + pt.x, this.y + pt.y);
     }
@@ -261,11 +265,13 @@ class LineSegment extends Shape {
 }
 
 class Rect extends Shape {
+    is_square: boolean;
     lines : SVGLineElement[];
     h : number = -1;
 
-    constructor(){
+    constructor(is_square: boolean){
         super();
+        this.is_square = is_square;
         this.lines = [];
         for(let i = 0; i < 4; i++){
             var line = document.createElementNS("http://www.w3.org/2000/svg","line");
@@ -276,82 +282,90 @@ class Rect extends Shape {
         }
     }
 
-    set_rect_pos(pt: Vec2|null, idx: number){
-        console.assert(pt != null || this.handles.length == 3);
-
-        var line0 = this.lines[0];
+    set_rect_pos(pt: Vec2, idx: number){
+        var line1 = this.lines[0];
 
         var p1 = this.handles[0].pos; 
-        line0.setAttribute("x1", "" + p1.x);
-        line0.setAttribute("y1", "" + p1.y);
+        line1.setAttribute("x1", "" + p1.x);
+        line1.setAttribute("y1", "" + p1.y);
+
+        var p2;
 
         if(this.handles.length == 1){
 
-            line0.setAttribute("x2", "" + pt!.x);
-            line0.setAttribute("y2", "" + pt!.y);
-            return;
+            p2 = pt;
+        }
+        else{
+
+            p2 = this.handles[1].pos; 
         }
 
-        var p2 = this.handles[1].pos; 
-        line0.setAttribute("x2", "" + p2.x);
-        line0.setAttribute("y2", "" + p2.y);
+        line1.setAttribute("x2", "" + p2.x);
+        line1.setAttribute("y2", "" + p2.y);
 
-        var line1 = this.lines[1];
-        line1.setAttribute("x1", "" + p2.x);
-        line1.setAttribute("y1", "" + p2.y);
+        var line2 = this.lines[1];
+        line2.setAttribute("x1", "" + p2.x);
+        line2.setAttribute("y1", "" + p2.y);
 
         var p12 = p2.sub(p1);
 
-        var e = (new Vec2(- p12.y, p12.x)).unit();
+        var e = (new Vec2(p12.y, -p12.x)).unit();
 
         var h;
-        if(this.h == -1 || idx == 2){
+        if(this.is_square){
 
-            var pa;
-            if(this.handles.length == 2){
-    
-                pa = pt!;
-    
-            }
-            else{
-    
-                pa = this.handles[2].pos; 
-            }
-    
-            var p0a = pa.sub(p1);
-            h = e.dot(p0a);
-
-            if(this.handles.length == 3){
-                this.h = h;
-            }
+            h = p12.len();
         }
         else{
-            h = this.h;
+
+            if(this.h == -1 || idx == 2){
+
+                var pa;
+                if(this.handles.length < 3){
+        
+                    pa = pt;
+        
+                }
+                else{
+        
+                    pa = this.handles[2].pos; 
+                }
+        
+                var p0a = pa.sub(p1);
+                h = e.dot(p0a);
+    
+                if(this.handles.length == 3){
+                    this.h = h;
+                }
+            }
+            else{
+                h = this.h;
+            }
         }
 
-        var p32 = e.mul(h);
-        var p3 = p2.add(p32);
+        var eh = e.mul(h);
+        var p3 = p2.add(eh);
 
-        line1.setAttribute("x2", "" + p3.x);
-        line1.setAttribute("y2", "" + p3.y);
+        line2.setAttribute("x2", "" + p3.x);
+        line2.setAttribute("y2", "" + p3.y);
 
         var p4 = p3.add(p1.sub(p2));
 
-        var line2 = this.lines[2];
-        line2.setAttribute("x1", "" + p3.x);
-        line2.setAttribute("y1", "" + p3.y);
+        var line3 = this.lines[2];
+        line3.setAttribute("x1", "" + p3.x);
+        line3.setAttribute("y1", "" + p3.y);
 
-        line2.setAttribute("x2", "" + p4.x);
-        line2.setAttribute("y2", "" + p4.y);
+        line3.setAttribute("x2", "" + p4.x);
+        line3.setAttribute("y2", "" + p4.y);
 
-        var line3 = this.lines[3];
-        line3.setAttribute("x1", "" + p4.x);
-        line3.setAttribute("y1", "" + p4.y);
+        var line4 = this.lines[3];
+        line4.setAttribute("x1", "" + p4.x);
+        line4.setAttribute("y1", "" + p4.y);
 
-        line3.setAttribute("x2", "" + p1.x);
-        line3.setAttribute("y2", "" + p1.y);
+        line4.setAttribute("x2", "" + p1.x);
+        line4.setAttribute("y2", "" + p1.y);
 
-        if(this.handles.length == 2){
+        if(this.is_square || this.handles.length < 3){
 
             return;
         }
@@ -362,7 +376,7 @@ class Rect extends Shape {
 
     handle_move =(handle: Point, ev:PointerEvent, pt: Vec2)=>{
         var idx = this.handles.indexOf(handle);
-        this.set_rect_pos(null, idx);
+        this.set_rect_pos(pt, idx);
     }
 
     click =(ev: MouseEvent, pt:Vec2): void =>{
@@ -370,7 +384,7 @@ class Rect extends Shape {
 
         this.set_rect_pos(pt, -1);
 
-        if(this.handles.length == 3){
+        if(this.is_square && this.handles.length == 2 || this.handles.length == 3){
 
             tool = null;
         }    
@@ -587,9 +601,13 @@ function svg_click(ev: MouseEvent){
             break;
 
             case "rect":
-            tool = new Rect();
+            tool = new Rect(false);
             break;
-            
+
+            case "square":
+            tool = new Rect(true);
+            break;
+                
             case "circle":    
             tool = new Circle();
             break;
