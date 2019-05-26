@@ -80,6 +80,7 @@ function OrderPoints(p1:Vec2, p2:Vec2){
 }
 
 var svg : SVGSVGElement;
+var G0 : SVGGElement;
 var G1 : SVGGElement;
 var G2 : SVGGElement;
 
@@ -104,11 +105,34 @@ function get_svg_point(ev: MouseEvent | PointerEvent){
     return new Vec2(p.x, p.y);
 }
 
+
+
 function click_handle(ev: MouseEvent, pt:Vec2) : Point{
     var handle = get_point(ev);
     if(handle == null){
 
-        handle = new Point(pt);
+        var line = get_line(ev);
+        if(line != null){
+
+            handle = new Point(new Vec2(0,0));
+            line.adjust(handle, pt);
+
+            line.bind(handle)
+        }
+        else{
+            var circle = get_circle(ev);
+            if(circle != null){
+
+                handle = new Point(new Vec2(0,0));
+                circle.adjust(handle, pt);
+
+                circle.bind(handle)
+            }
+            else{
+
+                handle = new Point(pt);
+            }
+        }
     }
     else{
         handle.select(true);
@@ -123,6 +147,7 @@ var tool_type = "line-segment";
 abstract class Tool {
     handles : Point[] = [];
     handle_move:any;
+    bind_froms: Point[] = [];
 
     click =(ev: MouseEvent, pt:Vec2): void => {}
     pointermove = (ev: PointerEvent) : void => {}
@@ -134,6 +159,11 @@ abstract class Tool {
             handle.handle_moves.push(this.handle_move);
         }
         this.handles.push(handle);
+    }
+
+    bind(pt: Point){
+        this.bind_froms.push(pt);
+        pt.bind_to = this;
     }
 }
 
@@ -152,6 +182,12 @@ var shapes: Shape[] = [];
 var selected_shapes: Shape[] = [];
 
 function clear_tool(){
+    var v = Array.from(G0.childNodes.values());
+    for(let x of v){
+        G0.removeChild(x);
+        G1.appendChild(x);
+    }
+
     for(let x of selected_shapes){
         x.select(false);
     }
@@ -165,8 +201,13 @@ function get_point(ev: MouseEvent) : Point | null{
 }
 
 function get_line(ev: MouseEvent) : LineSegment | null{
-    var line = shapes.find(x => x.constructor.name == "LineSegment" && (x as LineSegment).line == ev.target) as (LineSegment|undefined);
+    var line = shapes.find(x => x.constructor.name == "LineSegment" && (x as LineSegment).line == ev.target && (x as LineSegment).handles.length == 2) as (LineSegment|undefined);
     return line == undefined ? null : line;
+}
+
+function get_circle(ev: MouseEvent) : Circle | null{
+    var circle = shapes.find(x => x.constructor.name == "Circle" && (x as Circle).circle == ev.target && (x as Circle).handles.length == 2) as (Circle|undefined);
+    return circle == undefined ? null : circle;
 }
 
 
@@ -175,6 +216,9 @@ class Point extends Shape {
     down_pos: Vec2|null = null;
     circle : SVGCircleElement;
     handle_moves:any[];
+    bind_to: Tool|null = null;
+
+    h: number = 0;
 
     constructor(pt:Vec2, handle_moves:any[]= []){
         super();
@@ -213,6 +257,24 @@ class Point extends Shape {
         }
     }
 
+    adjust_point(ev: PointerEvent){
+        var pt = get_svg_point(ev);
+        if(this.bind_to != null){
+
+            if(this.bind_to.constructor.name == "LineSegment"){
+                (this.bind_to as LineSegment).adjust(this, pt);
+            }
+            else if(this.bind_to.constructor.name == "Circle"){
+                (this.bind_to as Circle).adjust(this, pt);
+            }
+        }
+        else{
+
+            this.pos = pt;
+            this.set_pos();
+        }
+    }
+
     pointerdown =(ev: PointerEvent)=>{
         if(tool_type != "select"){
             return;
@@ -240,8 +302,7 @@ class Point extends Shape {
         }
         console.log("handle pointer move");
 
-        this.pos = get_svg_point(ev);
-        this.set_pos();
+        this.adjust_point(ev);
 
         this.propagate();
     }
@@ -256,31 +317,33 @@ class Point extends Shape {
         this.circle.releasePointerCapture(ev.pointerId);
         capture = null;
 
-        this.pos = get_svg_point(ev);
-        this.set_pos();
+        this.adjust_point(ev);
 
-        for(let handle_move of this.handle_moves){
-            handle_move(this, this.pos);
-        }
+        this.propagate();
     }
 }
 
 class LineSegment extends Shape {    
     line : SVGLineElement;
+    p1: Vec2 = new Vec2(0,0);
+    p2: Vec2 = new Vec2(0,0);
+    p12: Vec2 = new Vec2(0,0);
+    e: Vec2 = new Vec2(0,0);
+    len: number = 0;
 
     constructor(p1:Vec2|null=null, p2:Vec2|null=null){
         super();
         this.line = document.createElementNS("http://www.w3.org/2000/svg","line");
         this.line.setAttribute("stroke", "navy");
         this.line.setAttribute("stroke-width", to_svg(3));
-        this.line.style.cursor = "move";
 
         if(p1 != null && p2 != null){
 
             this.set_poins(p1, p2);
+            this.set_vecs();
         }
 
-        G1.appendChild(this.line);
+        G0.appendChild(this.line);
     }
 
     set_poins(p1:Vec2, p2:Vec2){
@@ -294,9 +357,11 @@ class LineSegment extends Shape {
             this.handles[0].pos = p1;
             this.handles[0].propagate();
 
-            if(this.handles.length != 1){
+            if(this.handles.length == 2){
                 this.handles[1].pos = p2;
                 this.handles[1]
+
+                this.propagate();
             }
         }
     }
@@ -314,6 +379,8 @@ class LineSegment extends Shape {
 
             this.line.setAttribute("x2", "" + this.handles[1].pos.x);
             this.line.setAttribute("y2", "" + this.handles[1].pos.y);
+
+            this.propagate();
         }
     }
 
@@ -329,6 +396,8 @@ class LineSegment extends Shape {
             this.line.setAttribute("x2", "" + pt.x);
             this.line.setAttribute("y2", "" + pt.y);
         }
+
+        this.propagate();
     }
 
     click =(ev: MouseEvent, pt:Vec2): void => {
@@ -342,8 +411,12 @@ class LineSegment extends Shape {
             this.line.setAttribute("y1", "" + pt.y);
         }
         else{
+            this.line.style.cursor = "move";
+            this.set_vecs();
+
             clear_tool();
         }    
+
     }
 
     pointermove =(ev: PointerEvent) : void =>{
@@ -351,6 +424,38 @@ class LineSegment extends Shape {
 
         this.line!.setAttribute("x2", "" + pt.x);
         this.line!.setAttribute("y2", "" + pt.y);
+    }
+
+    set_vecs(){
+        this.p1 = this.handles[0].pos;
+        this.p2 = this.handles[1].pos;
+        this.p12 = this.p2.sub(this.p1);
+        this.e = this.p12.unit();
+        this.len = this.p12.len();
+    }
+
+    adjust(handle: Point, pt: Vec2) {
+        if(this.len == 0){
+            handle.h = 0;
+        }
+        else{
+            handle.h = this.e.dot(pt.sub(this.p1)) / this.len;
+        }
+        handle.pos = this.p1.add(this.p12.mul(handle.h));
+        handle.set_pos();
+    }
+
+    propagate(){
+        this.set_vecs();
+        if(this.bind_froms.length != 0){
+
+            for(let handle of this.bind_froms){
+                handle.pos = this.p1.add(this.p12.mul(handle.h));
+                handle.set_pos();
+
+                handle.propagate();
+            }
+        }
     }
 }
 
@@ -456,18 +561,24 @@ class Rect extends Tool {
             case 2:
                 line1.add_handle(this.handles[1], false);
                 line2.add_handle(this.handles[1], false);
+
+                line1.line.style.cursor = "move";
+
                 break;
             case 3:
                 line2.add_handle(this.handles[2], false);
+                line2.line.style.cursor = "move";
 
                 var handle4 = new Point(p4);
                 this.handles.push(handle4);
 
                 line3.add_handle(this.handles[2], false);
                 line3.add_handle(handle4, false);
+                line3.line.style.cursor = "move";
 
                 line4.add_handle(handle4, false);
                 line4.add_handle(this.handles[0], false);
+                line4.line.style.cursor = "move";
                 break;
             }
         }
@@ -518,11 +629,17 @@ class Rect extends Tool {
 class Circle extends Shape {
     circle: SVGCircleElement;
     radius: number = parseInt(to_svg(1), 10);
+    in_propagate : boolean = false;
 
     constructor(){
         super();
         this.circle = document.createElementNS("http://www.w3.org/2000/svg","circle");
-        G1.appendChild(this.circle);    
+        this.circle.setAttribute("fill", "none");// "transparent");
+        this.circle.setAttribute("stroke", "navy");
+        this.circle.setAttribute("stroke-width", to_svg(3));     
+        this.circle.setAttribute("fill-opacity", "0");
+        
+        G0.appendChild(this.circle);    
     }
 
     set_radius(pt: Vec2){
@@ -544,6 +661,8 @@ class Circle extends Shape {
 
             this.set_radius(pt);
         }
+
+        this.propagate();
     }
 
     click =(ev: MouseEvent, pt:Vec2): void =>{
@@ -554,12 +673,10 @@ class Circle extends Shape {
             this.circle.setAttribute("cx", "" + pt.x);
             this.circle.setAttribute("cy", "" + pt.y);
             this.circle.setAttribute("r", "" + this.radius);
-            this.circle.setAttribute("fill", "transparent");
-            this.circle.setAttribute("stroke", "navy");
-            this.circle.setAttribute("stroke-width", to_svg(3));        
         }
         else{
             this.set_radius(pt);
+            this.circle.style.cursor = "move";
     
             clear_tool();
         }
@@ -570,6 +687,39 @@ class Circle extends Shape {
 
         this.set_radius(pt);
     }
+
+    adjust(handle: Point, pt: Vec2) {
+        var center = this.handles[0].pos;
+        var v = pt.sub(center);
+        var theta = Math.atan2(v.y, v.x);
+
+        handle.pos = new Vec2(center.x + this.radius * Math.cos(theta), center.y + this.radius * Math.sin(theta));
+        handle.h = theta;
+
+        handle.set_pos();
+    }
+
+    propagate(){
+        if(this.in_propagate){
+            return;
+        }
+        this.in_propagate = true;
+
+        if(this.bind_froms.length != 0){
+
+            for(let pt of this.bind_froms){
+                var c = this.handles[0].pos;
+                pt.pos.x = c.x + this.radius * Math.cos(pt.h);
+                pt.pos.y = c.y + this.radius * Math.sin(pt.h);
+                pt.set_pos();
+
+                pt.propagate();
+            }
+        }
+
+        this.in_propagate = false;
+    }
+
 }
 
 class Triangle extends Tool {
@@ -587,6 +737,7 @@ class Triangle extends Tool {
             var handle = click_handle(ev, pt);
             last_line.add_handle(handle);
             last_line.update_pos();
+            last_line.line.style.cursor = "move";
 
             line.add_handle(handle);
         }
@@ -596,6 +747,7 @@ class Triangle extends Tool {
             var handle1 = this.lines[0].handles[0];
 
             line.add_handle(handle1);
+            line.line.style.cursor = "move";
 
             clear_tool();
         }
@@ -831,8 +983,11 @@ export function init_draw(){
     var rc = svg.getBoundingClientRect() as DOMRect;
     svg_ratio = svg.viewBox.baseVal.width / rc.width;
 
+    G0 = document.createElementNS("http://www.w3.org/2000/svg","g");
     G1 = document.createElementNS("http://www.w3.org/2000/svg","g");
     G2 = document.createElementNS("http://www.w3.org/2000/svg","g");
+
+    svg.appendChild(G0);
     svg.appendChild(G1);
     svg.appendChild(G2);
 
