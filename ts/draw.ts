@@ -631,11 +631,16 @@ class Rect extends Tool {
 
 class Circle extends Shape {
     circle: SVGCircleElement;
+    center: Vec2|null = null;
     radius: number = parseInt(to_svg(1), 10);
     in_propagate : boolean = false;
+    by_diameter:boolean 
 
-    constructor(){
+    constructor(by_diameter:boolean){
         super();
+
+        this.by_diameter = by_diameter;
+
         this.circle = document.createElementNS("http://www.w3.org/2000/svg","circle");
         this.circle.setAttribute("fill", "none");// "transparent");
         this.circle.setAttribute("stroke", "navy");
@@ -645,22 +650,41 @@ class Circle extends Shape {
         G0.appendChild(this.circle);    
     }
 
+    set_center(pt: Vec2){
+        this.center = this.handles[0].pos.add(pt).mul(0.5);
+
+        this.circle.setAttribute("cx", "" + this.center.x);
+        this.circle.setAttribute("cy", "" + this.center.y);
+    }
+
     set_radius(pt: Vec2){
-        this.radius = this.handles[0].pos.dist(pt);
+        this.radius = this.center!.dist(pt);
         this.circle!.setAttribute("r", "" +  this.radius );
     }
 
     handle_move =(handle: Point, pt: Vec2)=>{
-        var idx = this.handles.indexOf(handle);
-        
+        var idx = this.handles.indexOf(handle);        
+
         if(idx == 0){
 
-            this.circle.setAttribute("cx", "" + pt.x);
-            this.circle.setAttribute("cy", "" + pt.y);
+            if(this.by_diameter){
 
+                this.handles[0].pos = pt;
+                this.set_center(this.handles[1].pos);
+            }
+            else{
+    
+                this.center = pt;
+                this.circle.setAttribute("cx", "" + pt.x);
+                this.circle.setAttribute("cy", "" + pt.y);
+            }
+    
             this.set_radius(this.handles[1].pos);
         }
         else{
+            if(this.by_diameter){
+                this.set_center(pt);
+            }
 
             this.set_radius(pt);
         }
@@ -673,11 +697,18 @@ class Circle extends Shape {
 
         if(this.handles.length == 1){
 
+            this.center = pt;
+
             this.circle.setAttribute("cx", "" + pt.x);
             this.circle.setAttribute("cy", "" + pt.y);
             this.circle.setAttribute("r", "" + this.radius);
         }
         else{
+            if(this.by_diameter){
+
+                this.set_center(pt);
+            }
+    
             this.set_radius(pt);
             this.circle.style.cursor = "move";
     
@@ -688,15 +719,18 @@ class Circle extends Shape {
     pointermove =(ev: PointerEvent) : void =>{
         var pt = get_svg_point(ev);
 
+        if(this.by_diameter){
+
+            this.set_center(pt);
+        }
         this.set_radius(pt);
     }
 
     adjust(handle: Point, pt: Vec2) {
-        var center = this.handles[0].pos;
-        var v = pt.sub(center);
+        var v = pt.sub(this.center!);
         var theta = Math.atan2(v.y, v.x);
 
-        handle.pos = new Vec2(center.x + this.radius * Math.cos(theta), center.y + this.radius * Math.sin(theta));
+        handle.pos = new Vec2(this.center!.x + this.radius * Math.cos(theta), this.center!.y + this.radius * Math.sin(theta));
         handle.h = theta;
 
         handle.set_pos();
@@ -711,9 +745,8 @@ class Circle extends Shape {
         if(this.bind_froms.length != 0){
 
             for(let pt of this.bind_froms){
-                var c = this.handles[0].pos;
-                pt.pos.x = c.x + this.radius * Math.cos(pt.h);
-                pt.pos.y = c.y + this.radius * Math.sin(pt.h);
+                pt.pos.x = this.center!.x + this.radius * Math.cos(pt.h);
+                pt.pos.y = this.center!.y + this.radius * Math.sin(pt.h);
                 pt.set_pos();
 
                 pt.propagate();
@@ -722,7 +755,6 @@ class Circle extends Shape {
 
         this.in_propagate = false;
     }
-
 }
 
 class Triangle extends Tool {
@@ -958,8 +990,12 @@ function svg_click(ev: MouseEvent){
             tool = new Rect(true);
             break;
                 
-            case "circle":    
-            tool = new Circle();
+            case "circle1":    
+            tool = new Circle(false);
+            break;
+                
+            case "circle2":    
+            tool = new Circle(true);
             break;
     
             case "triangle":
