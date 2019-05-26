@@ -331,17 +331,11 @@ class LineSegment extends Shape {
     e: Vec2 = new Vec2(0,0);
     len: number = 0;
 
-    constructor(p1:Vec2|null=null, p2:Vec2|null=null){
+    constructor(){
         super();
         this.line = document.createElementNS("http://www.w3.org/2000/svg","line");
         this.line.setAttribute("stroke", "navy");
         this.line.setAttribute("stroke-width", to_svg(3));
-
-        if(p1 != null && p2 != null){
-
-            this.set_poins(p1, p2);
-            this.set_vecs();
-        }
 
         G0.appendChild(this.line);
     }
@@ -549,7 +543,12 @@ class Rect extends Tool {
 
         if(clicked){
             if(this.handles.length == 2 && this.is_square){
-                    
+
+                line1.add_handle(this.handles[1], false);
+                line2.add_handle(this.handles[1], false);
+
+                line1.line.style.cursor = "move";
+                
                 var handle3 = new Point(p3);
                 this.handles.push(handle3);
             }
@@ -615,6 +614,10 @@ class Rect extends Tool {
 
         if(this.handles.length == 4){
 
+            for(let line of this.lines){
+                console.assert(line.handles.length == 2);
+                line.set_vecs();
+            }
             clear_tool();
         }    
     }
@@ -856,6 +859,7 @@ class Perpendicular extends Tool {
     line : LineSegment | null = null;
     foot : Point | null = null;
     perpendicular : LineSegment | null = null;
+    in_handle_move: boolean = false;
 
     calc_foot_of_perpendicular(){
         var p1 = this.line!.handles[0].pos;
@@ -871,12 +875,19 @@ class Perpendicular extends Tool {
     }
 
     handle_move =(handle: Point, pt: Vec2)=>{
+        if(this.in_handle_move){
+            return;
+        }
+        this.in_handle_move = true;
+
         this.foot!.pos = this.calc_foot_of_perpendicular();
         this.foot!.set_pos();
 
         this.foot!.propagate();
 
         this.perpendicular!.set_poins(this.handles[0].pos, this.foot!.pos);
+
+        this.in_handle_move = false;
     }
 
     click =(ev: MouseEvent, pt:Vec2): void => {
@@ -896,7 +907,12 @@ class Perpendicular extends Tool {
 
             this.foot = new Point( this.calc_foot_of_perpendicular() );
 
-            this.perpendicular = new LineSegment(this.handles[0].pos, this.foot.pos);
+            this.perpendicular = new LineSegment();
+            this.perpendicular.add_handle(this.handles[0]);
+            this.perpendicular.add_handle(this.foot, false);
+
+            this.perpendicular.set_vecs();
+            this.perpendicular.update_pos();
 
             clear_tool();
         }
