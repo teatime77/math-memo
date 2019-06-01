@@ -125,6 +125,10 @@ var CTM : DOMMatrix;
 var CTMInv : DOMMatrix;
 var svg_ratio: number;
 
+var angle_dlg : HTMLDialogElement;
+var angle_dlg_ok : HTMLInputElement;
+var angle_dlg_color : HTMLInputElement;
+
 function to_svg(x:number) : number{
     return x * svg_ratio;
 }
@@ -911,7 +915,7 @@ class TextBox extends Shape {
 
     static init(){
         TextBox.dialog = document.getElementById('text-box-dlg') as HTMLDialogElement;
-        (document.getElementById("text-box-ok") as HTMLInputElement).addEventListener("click", TextBox.ok_click)
+        (document.getElementById("text-box-ok") as HTMLInputElement).addEventListener("click", TextBox.ok_click);
     }
 
     constructor(){
@@ -1076,6 +1080,8 @@ class Angle extends Shape {
     ts : number[] = [];
     arc: SVGPathElement|null = null;
 
+    static current: Angle;
+
     draw_arc(){
         var line1 = this.lines[0];
         var line2 = this.lines[1];
@@ -1088,7 +1094,7 @@ class Angle extends Shape {
         var sign1 = Math.sign(q1.sub(p).dot(line1.e));
         var sign2 = Math.sign(q2.sub(p).dot(line2.e));
 
-        var r = to_svg(30);        
+        var r = to_svg(40);        
         var p1 = p.add(this.lines[0].e.mul(r * sign1));
         var p2 = p.add(this.lines[1].e.mul(r * sign2));
 
@@ -1119,6 +1125,40 @@ class Angle extends Shape {
         this.draw_arc();
     }
 
+
+    ok_click(){
+        console.log("angle dlg ok click");
+        this.arc!.setAttribute("stroke", angle_dlg_color.value.trim());
+
+        angle_dlg.close();
+    }
+
+
+    static init(){
+        angle_dlg = document.getElementById('angle-dlg') as HTMLDialogElement;
+        angle_dlg_ok = document.getElementById('angle-dlg-ok') as HTMLInputElement;
+        angle_dlg_color = document.getElementById('angle-dlg-color') as HTMLInputElement;
+
+        angle_dlg.addEventListener("keydown", ev=>{
+            if(ev.key == 'Enter'){
+                Angle.current.ok_click();
+            }    
+        });
+
+        angle_dlg_ok.addEventListener("click", ev=>{
+            Angle.current.ok_click();    
+        });
+    
+    }
+
+    arc_click = (ev: MouseEvent)=>{
+        Angle.current = this;
+        angle_dlg_color.value = this.arc!.getAttribute("stroke")!;
+
+        angle_dlg.showModal();
+        // angle_dlg_ok.removeEventListener("click", this.ok_click);
+    }
+
     click =(ev: MouseEvent, pt:Vec2): void => {
         var line = get_line(ev);
         
@@ -1138,7 +1178,9 @@ class Angle extends Shape {
 
                 this.arc.setAttribute("fill", "none");
                 this.arc.setAttribute("stroke", "red");
-                this.arc.setAttribute("stroke-width", `${to_svg(2)}`);     
+                this.arc.setAttribute("stroke-width", `${to_svg(2)}`);
+                this.arc.addEventListener("click", this.arc_click);
+                this.arc.style.cursor = "pointer";
 
                 this.draw_arc();
         
@@ -1273,6 +1315,8 @@ export function init_draw(){
     for(let x of tool_types){
         x.addEventListener("click", tool_click);
     }
+
+    Angle.init();
 }
 
 }
