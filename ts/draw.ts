@@ -60,6 +60,43 @@ class Vec2 {
     }
 }
 
+class Mat2 {
+    a11 : number;
+    a12 : number;
+    a21 : number;
+    a22 : number;
+
+    constructor(a11:number, a12:number, a21:number, a22:number){
+        this.a11 = a11;
+        this.a12 = a12;
+        this.a21 = a21;
+        this.a22 = a22;
+    }
+
+    print(){
+        console.log(`${this.a11} ${this.a12}\n${this.a21} ${this.a22}`);
+    }
+
+    det(){
+        return this.a11 * this.a22 - this.a12 * this.a21;
+    }
+
+    mul(m:Mat2):Mat2 {
+        return new Mat2(this.a11 * m.a11 + this.a12 * m.a21, this.a11 * m.a12 + this.a12 * m.a22, this.a21 * m.a11 + this.a22 * m.a21, this.a21 * m.a12 + this.a22 * m.a22);
+    }
+
+    dot(v:Vec2) : Vec2{
+        return new Vec2(this.a11 * v.x + this.a12 * v.y, this.a21 * v.x + this.a22 * v.y);
+    }
+
+    inv() : Mat2 {
+        var det = this.det();
+        console.assert(det != 0);
+
+        return new Mat2(this.a22 / det, - this.a12 / det, - this.a21 / det, this.a11 / det)
+    }
+}
+
 function OrderPoints(p1:Vec2, p2:Vec2){
     var pt1 = new Vec2(p1.x, p1.y);
     var pt2 = new Vec2(p2.x, p2.y);
@@ -88,8 +125,8 @@ var CTM : DOMMatrix;
 var CTMInv : DOMMatrix;
 var svg_ratio: number;
 
-function to_svg(x:number){
-    return `${x * svg_ratio}`;
+function to_svg(x:number) : number{
+    return x * svg_ratio;
 }
 
 function get_svg_point(ev: MouseEvent | PointerEvent){
@@ -102,6 +139,7 @@ function get_svg_point(ev: MouseEvent | PointerEvent){
     //座標に逆行列を適用する．
     var p = point.matrixTransform(CTMInv);    
 
+    p.y = - p.y;
     return new Vec2(p.x, p.y);
 }
 
@@ -210,6 +248,42 @@ function get_circle(ev: MouseEvent) : Circle | null{
     return circle == undefined ? null : circle;
 }
 
+function lines_intersection(l1:LineSegment, l2:LineSegment) : Vec2 {
+    l1.set_vecs();
+    l2.set_vecs();
+
+    /*
+    l1.p1 + u l1.p12 = l2.p1 + v l2.p12
+
+    l1.p1.x + u l1.p12.x = l2.p1.x + v l2.p12.x
+    l1.p1.y + u l1.p12.y = l2.p1.y + v l2.p12.y
+
+    l1.p12.x, - l2.p12.x   u = l2.p1.x - l1.p1.x
+    l1.p12.y, - l2.p12.y   v = l2.p1.y - l1.p1.y
+    
+    */
+    var m = new Mat2(l1.p12.x, - l2.p12.x, l1.p12.y, - l2.p12.y);
+    var v = new Vec2(l2.p1.x - l1.p1.x, l2.p1.y - l1.p1.y);
+    var mi = m.inv();
+    var uv = mi.dot(v);
+    var u = uv.x;
+
+    return l1.p1.add(l1.p12.mul(u));
+}
+
+function calc_foot_of_perpendicular(pos:Vec2, line: LineSegment) : Vec2 {
+    var p1 = line.handles[0].pos;
+    var p2 = line.handles[1].pos;
+
+    var e = p2.sub(p1).unit();
+    var v = pos.sub(p1);
+    var h = e.dot(v);
+
+    var foot = p1.add(e.mul(h));
+
+    return foot;
+}
+
 
 class Point extends Shape {
     pos : Vec2;
@@ -223,7 +297,7 @@ class Point extends Shape {
     constructor(pt:Vec2, handle_moves:any[]= []){
         super();
         this.circle = document.createElementNS("http://www.w3.org/2000/svg","circle");
-        this.circle.setAttribute("r", to_svg(5));
+        this.circle.setAttribute("r", `${to_svg(5)}`);
         this.circle.setAttribute("fill", "blue");
         this.circle.addEventListener("pointerdown", this.pointerdown);
         this.circle.addEventListener("pointermove", this.pointermove);
@@ -335,9 +409,23 @@ class LineSegment extends Shape {
         super();
         this.line = document.createElementNS("http://www.w3.org/2000/svg","line");
         this.line.setAttribute("stroke", "navy");
-        this.line.setAttribute("stroke-width", to_svg(3));
+        this.line.setAttribute("stroke-width", `${to_svg(3)}`);
 
         G0.appendChild(this.line);
+    }
+
+    
+    select(selected: boolean){
+        if(selected){
+            if(! selected_shapes.includes(this)){
+                selected_shapes.push(this);
+                this.line.setAttribute("stroke", "orange");
+            }
+        }
+        else{
+
+            this.line.setAttribute("stroke", "navy");
+        }
     }
 
     set_poins(p1:Vec2, p2:Vec2){
@@ -491,7 +579,7 @@ class Rect extends Tool {
 
         var p12 = p2.sub(p1);
 
-        var e = (new Vec2(p12.y, -p12.x)).unit();
+        var e = (new Vec2(- p12.y, p12.x)).unit();
 
         var h;
         if(this.is_square){
@@ -632,7 +720,7 @@ class Rect extends Tool {
 class Circle extends Shape {
     circle: SVGCircleElement;
     center: Vec2|null = null;
-    radius: number = parseInt(to_svg(1), 10);
+    radius: number = to_svg(1);
     in_propagate : boolean = false;
     by_diameter:boolean 
 
@@ -644,7 +732,7 @@ class Circle extends Shape {
         this.circle = document.createElementNS("http://www.w3.org/2000/svg","circle");
         this.circle.setAttribute("fill", "none");// "transparent");
         this.circle.setAttribute("stroke", "navy");
-        this.circle.setAttribute("stroke-width", to_svg(3));     
+        this.circle.setAttribute("stroke-width", `${to_svg(3)}`);     
         this.circle.setAttribute("fill-opacity", "0");
         
         G0.appendChild(this.circle);    
@@ -802,15 +890,15 @@ class TextBox extends Shape {
     static text_box : TextBox;    
     rect   : SVGRectElement;
     div : HTMLDivElement | null = null;
-    x : number = 0;
-    y  : number = 0;
-    width : number = 0;
-    height : number = 0;
+    clicked_pos : Vec2|null = null;
 
     static ontypeset(self: TextBox){
         var rc = self.div!.getBoundingClientRect();
         self.rect.setAttribute("width", `${to_svg(rc.width)}`);
-        self.rect.setAttribute("height", `${to_svg(rc.height)}`);
+
+        var h = to_svg(rc.height);
+        self.rect.setAttribute("y", `${self.clicked_pos!.y - h}`);
+        self.rect.setAttribute("height", `${h}`);
     }
 
     static ok_click(){
@@ -833,13 +921,15 @@ class TextBox extends Shape {
     }
 
     click =(ev: MouseEvent, pt:Vec2) : void =>{
+        this.clicked_pos = pt;
+
         this.rect.setAttribute("x", "" + pt.x);
         this.rect.setAttribute("y", "" + pt.y);
-        this.rect.setAttribute("width", to_svg(1));
-        this.rect.setAttribute("height", to_svg(1));
+        this.rect.setAttribute("width", `${to_svg(1)}`);
+        this.rect.setAttribute("height", `${to_svg(1)}`);
         this.rect.setAttribute("fill", "transparent");
         this.rect.setAttribute("stroke", "navy");
-        this.rect.setAttribute("stroke-width", to_svg(3));
+        this.rect.setAttribute("stroke-width", `${to_svg(3)}`);
 
         G1.appendChild(this.rect);
 
@@ -893,26 +983,13 @@ class Perpendicular extends Tool {
     perpendicular : LineSegment | null = null;
     in_handle_move: boolean = false;
 
-    calc_foot_of_perpendicular(){
-        var p1 = this.line!.handles[0].pos;
-        var p2 = this.line!.handles[1].pos;
-
-        var e = p2.sub(p1).unit();
-        var v = this.handles[0].pos.sub(p1);
-        var h = e.dot(v);
-
-        var foot = p1.add(e.mul(h));
-
-        return foot;
-    }
-
     handle_move =(handle: Point, pt: Vec2)=>{
         if(this.in_handle_move){
             return;
         }
         this.in_handle_move = true;
 
-        this.foot!.pos = this.calc_foot_of_perpendicular();
+        this.foot!.pos = calc_foot_of_perpendicular(this.handles[0].pos, this.line!);
         this.foot!.set_pos();
 
         this.foot!.propagate();
@@ -937,9 +1014,10 @@ class Perpendicular extends Tool {
             this.line.handles[0].handle_moves.push(this.handle_move);
             this.line.handles[1].handle_moves.push(this.handle_move);
 
-            this.foot = new Point( this.calc_foot_of_perpendicular() );
+            this.foot = new Point( calc_foot_of_perpendicular(this.handles[0].pos, this.line!) );
 
             this.perpendicular = new LineSegment();
+            this.perpendicular.line.style.cursor = "move";
             this.perpendicular.add_handle(this.handles[0]);
             this.perpendicular.add_handle(this.foot, false);
 
@@ -950,6 +1028,137 @@ class Perpendicular extends Tool {
         }
     }
 }
+
+
+class Intersection extends Shape {
+    lines : LineSegment[] = [];
+    intersection : Point|null = null;
+
+    handle_move =(handle: Point, pt: Vec2)=>{
+        this.intersection!.pos = lines_intersection(this.lines[0], this.lines[1]);
+        this.intersection!.set_pos();
+        this.intersection!.propagate();
+    }
+
+    click =(ev: MouseEvent, pt:Vec2): void => {
+        var line = get_line(ev);
+        
+        if(line != null){
+            this.lines.push(line);
+
+            if(this.lines.length == 1){
+
+
+                line.select(true);
+            }
+            else{
+
+                var v = lines_intersection(this.lines[0], this.lines[1]);
+                this.intersection = new Point(v);
+
+                for(let line2 of this.lines){
+
+                    line2.handles[0].handle_moves.push(this.handle_move);
+                    line2.handles[1].handle_moves.push(this.handle_move);
+                }
+
+                clear_tool();
+            }
+        }
+    }
+
+    pointermove = (ev: PointerEvent) : void => {
+    }
+}
+
+class Angle extends Shape {
+    lines : LineSegment[] = [];
+    ts : number[] = [];
+    arc: SVGPathElement|null = null;
+
+    draw_arc(){
+        var line1 = this.lines[0];
+        var line2 = this.lines[1];
+
+        var q1 = line1.p1.add(line1.p12.mul(this.ts[0]));
+        var q2 = line2.p1.add(line2.p12.mul(this.ts[1]));
+
+        var p = lines_intersection(this.lines[0], this.lines[1]);
+
+        var sign1 = Math.sign(q1.sub(p).dot(line1.e));
+        var sign2 = Math.sign(q2.sub(p).dot(line2.e));
+
+        var r = to_svg(30);        
+        var p1 = p.add(this.lines[0].e.mul(r * sign1));
+        var p2 = p.add(this.lines[1].e.mul(r * sign2));
+
+        var theta1 = Math.atan2(q1.y - p.y, q1.x - p.x);
+        var theta2 = Math.atan2(q2.y - p.y, q2.x - p.x);
+
+        if(theta1 < 0){
+            theta1 += 2 * Math.PI;
+        }
+        if(theta2 < 0){
+            theta2 += 2 * Math.PI;
+        }
+        
+        var d_theta = theta2 - theta1;
+        if(d_theta < 0){
+            d_theta += 2 * Math.PI;
+        }
+
+        var large_arc_sweep_flag = (Math.PI < d_theta ? 1 : 0);
+        console.log(`${theta1} ${theta2} d_theta:${d_theta} large_arc_sweep_flag:${large_arc_sweep_flag}`);
+
+        var d = `M${p1.x} ${p1.y} A ${r} ${r} 0 ${large_arc_sweep_flag} 1 ${p2.x} ${p2.y}`;
+
+        this.arc!.setAttribute("d", d);
+    }
+
+    handle_move =(handle: Point, pt: Vec2)=>{
+        this.draw_arc();
+    }
+
+    click =(ev: MouseEvent, pt:Vec2): void => {
+        var line = get_line(ev);
+        
+        if(line != null){
+            this.lines.push(line);
+
+            var t = pt.sub(line.p1).dot(line.e) / line.len;
+            this.ts.push(t);
+
+            if(this.lines.length == 1){
+
+
+                line.select(true);
+            }
+            else{
+                this.arc = document.createElementNS("http://www.w3.org/2000/svg","path");
+
+                this.arc.setAttribute("fill", "none");
+                this.arc.setAttribute("stroke", "red");
+                this.arc.setAttribute("stroke-width", `${to_svg(2)}`);     
+
+                this.draw_arc();
+        
+                G0.appendChild(this.arc);
+
+                for(let line2 of this.lines){
+
+                    line2.handles[0].handle_moves.push(this.handle_move);
+                    line2.handles[1].handle_moves.push(this.handle_move);
+                }
+
+                clear_tool();
+            }
+        }
+    }
+
+    pointermove = (ev: PointerEvent) : void => {
+    }
+}
+
 
 var tool : Tool | null = null;
 
@@ -1001,6 +1210,14 @@ function svg_click(ev: MouseEvent){
             case "triangle":
             tool = new Triangle();
             break;
+    
+            case "intersection":
+                tool = new Intersection();
+                break;
+
+            case "angle":
+            tool = new Angle();
+            break;
 
             case "text-box":
             tool = new TextBox();
@@ -1038,6 +1255,10 @@ export function init_draw(){
     G0 = document.createElementNS("http://www.w3.org/2000/svg","g");
     G1 = document.createElementNS("http://www.w3.org/2000/svg","g");
     G2 = document.createElementNS("http://www.w3.org/2000/svg","g");
+
+    G0.setAttribute("transform", "matrix(1, 0, 0, -1, 0, 0)");
+    G1.setAttribute("transform", "matrix(1, 0, 0, -1, 0, 0)");
+    G2.setAttribute("transform", "matrix(1, 0, 0, -1, 0, 0)");
 
     svg.appendChild(G0);
     svg.appendChild(G1);
