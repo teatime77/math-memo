@@ -1,12 +1,28 @@
 /// <reference path="util.ts" />
 namespace MathMemo{
+
 declare var MathJax:any;
-var capture: any = null
+var capture: Point|null = null
 
-var property_div : HTMLDivElement;
+var svg : SVGSVGElement;
+var G0 : SVGGElement;
+var G1 : SVGGElement;
+var G2 : SVGGElement;
 
-class Path {
-}
+var CTM : DOMMatrix;
+var CTMInv : DOMMatrix;
+var svg_ratio: number;
+
+var angle_dlg : HTMLDialogElement;
+var angle_dlg_ok : HTMLInputElement;
+var angle_dlg_color : HTMLInputElement;
+
+var tool_type = "line-segment";
+
+var shapes: Shape[] = [];
+var selected_shapes: Shape[] = [];
+
+var tool : Tool | null = null;
 
 class Vec2 {
     x: number;
@@ -116,19 +132,6 @@ function OrderPoints(p1:Vec2, p2:Vec2){
     return [pt1, pt2];
 }
 
-var svg : SVGSVGElement;
-var G0 : SVGGElement;
-var G1 : SVGGElement;
-var G2 : SVGGElement;
-
-var CTM : DOMMatrix;
-var CTMInv : DOMMatrix;
-var svg_ratio: number;
-
-var angle_dlg : HTMLDialogElement;
-var angle_dlg_ok : HTMLInputElement;
-var angle_dlg_color : HTMLInputElement;
-
 function to_svg(x:number) : number{
     return x * svg_ratio;
 }
@@ -146,8 +149,6 @@ function get_svg_point(ev: MouseEvent | PointerEvent){
     p.y = - p.y;
     return new Vec2(p.x, p.y);
 }
-
-
 
 function click_handle(ev: MouseEvent, pt:Vec2) : Point{
     var handle = get_point(ev);
@@ -183,9 +184,6 @@ function click_handle(ev: MouseEvent, pt:Vec2) : Point{
     return handle;
 }
 
-var tool_type = "line-segment";
-
-
 abstract class Tool {
     handles : Point[] = [];
     handle_move:any;
@@ -219,9 +217,6 @@ abstract class Shape extends Tool {
     select(selected: boolean){
     }
 }
-
-var shapes: Shape[] = [];
-var selected_shapes: Shape[] = [];
 
 function clear_tool(){
     var v = Array.from(G0.childNodes.values());
@@ -291,7 +286,6 @@ function calc_foot_of_perpendicular(pos:Vec2, line: LineSegment) : Vec2 {
 
 class Point extends Shape {
     pos : Vec2;
-    down_pos: Vec2|null = null;
     circle : SVGCircleElement;
     handle_moves:any[];
     bind_to: Tool|null = null;
@@ -360,7 +354,6 @@ class Point extends Shape {
 
         capture = this;
         this.circle.setPointerCapture(ev.pointerId);
-        this.down_pos = get_svg_point(ev);
         console.log("handle pointer down");
     }
 
@@ -1201,9 +1194,6 @@ class Angle extends Shape {
     }
 }
 
-
-var tool : Tool | null = null;
-
 function tool_click(){
     tool_type = (document.querySelector('input[name="tool-type"]:checked') as HTMLInputElement).value;  
 }
@@ -1284,8 +1274,6 @@ function svg_pointermove(ev: PointerEvent){
 }
 
 export function init_draw(){
-    property_div = document.getElementById("property-div") as HTMLDivElement;
-
     svg = document.getElementById("main-svg") as unknown as SVGSVGElement;
 
     CTM = svg.getCTM()!;
