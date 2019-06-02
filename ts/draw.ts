@@ -17,7 +17,7 @@ var angle_dlg : HTMLDialogElement;
 var angle_dlg_ok : HTMLInputElement;
 var angle_dlg_color : HTMLInputElement;
 
-var tool_type = "line-segment";
+var tool_type = "";
 
 var shapes: Array<Shape> = [];
 var selected_shapes: Shape[] = [];
@@ -1234,17 +1234,17 @@ function tool_click(){
 function make_tool_by_type(tool_type: string): Tool|undefined {
     switch(tool_type){
         case "Point":         return new Point(new Vec2(0,0));
-        case "midpoint":      return new Midpoint();
-        case "perpendicular": return new Perpendicular()
-        case "line-segment":  return new LineSegment();
-        case "rect":          return new Rect(false);
-        case "square":        return new Rect(true);
-        case "circle1":       return new Circle(false);
-        case "circle2":       return new Circle(true);
-        case "triangle":      return new Triangle();
-        case "intersection":  return new Intersection();
-        case "angle":         return new Angle();
-        case "text-box":      return new TextBox();
+        case "Midpoint":      return new Midpoint();
+        case "Perpendicular": return new Perpendicular()
+        case "LineSegment":  return new LineSegment();
+        case "Rect.1":          return new Rect(false);
+        case "Rect.2":        return new Rect(true);
+        case "Circle.1":       return new Circle(false);
+        case "Circle.2":       return new Circle(true);
+        case "Triangle":      return new Triangle();
+        case "Intersection":  return new Intersection();
+        case "Angle":         return new Angle();
+        case "TextBox":      return new TextBox();
     } 
 }
 
@@ -1349,6 +1349,8 @@ export function init_draw(){
         }
         // console.log(`keydown:${ev.ctrlKey} ${ev.key} ${ev.keyCode} `)
     });
+
+    tool_click();
 }
 
 }
