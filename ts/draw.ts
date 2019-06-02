@@ -22,10 +22,10 @@ var tool_type = "";
 var shapes: Array<Shape> = [];
 var selected_shapes: Shape[] = [];
 
-var tools: Tool[] = [];
+var tools: Shape[] = [];
 var undos: any[] = [];
 
-var tool : Tool | null = null;
+var tool : Shape | null = null;
 
 class Vec2 {
     x: number;
@@ -187,7 +187,7 @@ function click_handle(ev: MouseEvent, pt:Vec2) : Point{
     return handle;
 }
 
-abstract class Tool {
+abstract class Shape {
     handles : Point[] = [];
     handle_move:any;
     bind_froms: Point[] = [];
@@ -196,8 +196,14 @@ abstract class Tool {
     from_json(obj: any){}
     remove_dom(){}
 
+    select(selected: boolean){}
+
     click =(ev: MouseEvent, pt:Vec2): void => {}
     pointermove = (ev: PointerEvent) : void => {}
+
+    constructor(){
+        shapes.push(this);
+    }
 
     add_handle(handle: Point, use_this_handle_move: boolean = true){
 
@@ -211,17 +217,6 @@ abstract class Tool {
     bind(pt: Point){
         this.bind_froms.push(pt);
         pt.bind_to = this;
-    }
-}
-
-abstract class Shape extends Tool {
-
-    constructor(){
-        super();
-        shapes.push(this);
-    }
-
-    select(selected: boolean){
     }
 }
 
@@ -296,7 +291,7 @@ class Point extends Shape {
     pos : Vec2;
     circle : SVGCircleElement;
     handle_moves:any[];
-    bind_to: Tool|null = null;
+    bind_to: Shape|null = null;
 
     h: number = 0;
 
@@ -444,6 +439,22 @@ class LineSegment extends Shape {
         G0.appendChild(this.line);
     }
 
+    make_json() : any{
+        var pts = [];
+        for(let handle of this.handles){
+            var idx = shapes.indexOf(handle);
+            console
+        }
+
+    }
+
+    from_json(obj: any){
+
+    }
+
+    remove_dom(){
+
+    }
     
     select(selected: boolean){
         if(selected){
@@ -571,7 +582,7 @@ class LineSegment extends Shape {
     }
 }
 
-class Rect extends Tool {
+class Rect extends Shape {
     is_square: boolean;
     lines : Array<LineSegment> = [];
     h : number = -1;
@@ -875,7 +886,7 @@ class Circle extends Shape {
     }
 }
 
-class Triangle extends Tool {
+class Triangle extends Shape {
     lines : Array<LineSegment> = [];
 
     click =(ev: MouseEvent, pt:Vec2): void =>{
@@ -977,7 +988,7 @@ class TextBox extends Shape {
     }
 }
 
-class Midpoint extends Tool {
+class Midpoint extends Shape {
     midpoint : Point | null = null;
 
     calc_midpoint(){
@@ -1007,7 +1018,7 @@ class Midpoint extends Tool {
 }
 
 
-class Perpendicular extends Tool {
+class Perpendicular extends Shape {
     line : LineSegment | null = null;
     foot : Point | null = null;
     perpendicular : LineSegment | null = null;
@@ -1231,7 +1242,7 @@ function tool_click(){
     tool_type = (document.querySelector('input[name="tool-type"]:checked') as HTMLInputElement).value;  
 }
 
-function make_tool_by_type(tool_type: string): Tool|undefined {
+function make_tool_by_type(tool_type: string): Shape|undefined {
     switch(tool_type){
         case "Point":         return new Point(new Vec2(0,0));
         case "Midpoint":      return new Midpoint();
