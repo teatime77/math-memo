@@ -19,8 +19,11 @@ var angle_dlg_color : HTMLInputElement;
 
 var tool_type = "line-segment";
 
-var shapes: Shape[] = [];
+var shapes: Array<Shape> = [];
 var selected_shapes: Shape[] = [];
+
+var tools: Tool[] = [];
+var undos: any[] = [];
 
 var tool : Tool | null = null;
 
@@ -189,6 +192,10 @@ abstract class Tool {
     handle_move:any;
     bind_froms: Point[] = [];
 
+    make_json() : any{}
+    from_json(obj: any){}
+    remove_dom(){}
+
     click =(ev: MouseEvent, pt:Vec2): void => {}
     pointermove = (ev: PointerEvent) : void => {}
 
@@ -229,6 +236,7 @@ function clear_tool(){
         x.select(false);
     }
     selected_shapes = [];
+
     tool = null;
 }
 
@@ -309,6 +317,31 @@ class Point extends Shape {
         G2.appendChild(this.circle);
 
         this.handle_moves = handle_moves;
+    }
+
+    make_json() : any{
+        return {
+            "type": "Point",
+            "x": this.pos.x,
+            "y": this.pos.y,
+        };
+    }
+
+    from_json(obj: any){
+        this.pos.x = obj.x;
+        this.pos.y = obj.y;
+        this.set_pos();
+    }
+
+    remove_dom(){
+        array_remove(shapes, this);
+        G2.removeChild(this.circle);
+    }
+
+    click =(ev: MouseEvent, pt:Vec2): void => {
+        this.pos = pt;
+        this.set_pos();
+        clear_tool();
     }
 
     set_pos(){
@@ -1198,6 +1231,23 @@ function tool_click(){
     tool_type = (document.querySelector('input[name="tool-type"]:checked') as HTMLInputElement).value;  
 }
 
+function make_tool_by_type(tool_type: string): Tool|undefined {
+    switch(tool_type){
+        case "Point":         return new Point(new Vec2(0,0));
+        case "midpoint":      return new Midpoint();
+        case "perpendicular": return new Perpendicular()
+        case "line-segment":  return new LineSegment();
+        case "rect":          return new Rect(false);
+        case "square":        return new Rect(true);
+        case "circle1":       return new Circle(false);
+        case "circle2":       return new Circle(true);
+        case "triangle":      return new Triangle();
+        case "intersection":  return new Intersection();
+        case "angle":         return new Angle();
+        case "text-box":      return new TextBox();
+    } 
+}
+
 function svg_click(ev: MouseEvent){
     if(capture != null){
         return;
@@ -1206,55 +1256,8 @@ function svg_click(ev: MouseEvent){
     var pt = get_svg_point(ev);
 
     if(tool == null){
-        switch(tool_type){
-            case "point":
-            new Point(pt);
-            break;
-
-            case "midpoint":
-            tool = new Midpoint();
-            break;
-
-            case "perpendicular":
-            tool = new Perpendicular()
-            break;
-    
-            case "line-segment":
-            tool = new LineSegment();
-            break;
-
-            case "rect":
-            tool = new Rect(false);
-            break;
-
-            case "square":
-            tool = new Rect(true);
-            break;
-                
-            case "circle1":    
-            tool = new Circle(false);
-            break;
-                
-            case "circle2":    
-            tool = new Circle(true);
-            break;
-    
-            case "triangle":
-            tool = new Triangle();
-            break;
-    
-            case "intersection":
-                tool = new Intersection();
-                break;
-
-            case "angle":
-            tool = new Angle();
-            break;
-
-            case "text-box":
-            tool = new TextBox();
-            break;
-        } 
+        tool = make_tool_by_type(tool_type)!;
+        tools.push(tool);
     }
 
     if(tool != null){
@@ -1271,6 +1274,33 @@ function svg_pointermove(ev: PointerEvent){
     if(tool != null){
         tool.pointermove(ev);
     }
+}
+
+function undo(){
+    if(tools.length == 0){
+        console.log("no undo");
+        return;
+    }
+    var tool = tools.pop()!;
+
+    var obj = tool.make_json();
+    undos.push(obj);
+
+    tool.remove_dom();
+}
+
+function redo(){
+    if(undos.length == 0){
+        console.log("no redo");
+        return;
+    }
+
+    var obj = undos.pop();
+
+    var tool = make_tool_by_type(obj.type)!;
+    tool.from_json(obj);
+    
+    tools.push(tool);
 }
 
 export function init_draw(){
@@ -1305,6 +1335,20 @@ export function init_draw(){
     }
 
     Angle.init();
+
+    document.body.addEventListener("keydown", (ev:KeyboardEvent) =>{
+        if(ev.ctrlKey){
+            switch(ev.key){
+            case "z":
+                undo();
+                break;
+            case "y":
+                redo();
+                break;
+            }
+        }
+        // console.log(`keydown:${ev.ctrlKey} ${ev.key} ${ev.keyCode} `)
+    });
 }
 
 }

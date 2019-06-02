@@ -6,6 +6,14 @@ export function array_last<T>(arr:T[]) : T{
     return arr[arr.length - 1];
 }
 
+export function array_remove<T>(arr:T[], x:T) {
+    var index = arr.indexOf(x);
+    if (index != -1) {
+        arr.splice(index, 1);
+    }
+}
+
+
 
 function get_indent(line: string) : [number, string]{
     var indent = 0;
