@@ -188,9 +188,14 @@ function click_handle(ev: MouseEvent, pt:Vec2) : Point{
 }
 
 abstract class Shape {
+    id: number;
     handles : Point[] = [];
     handle_move:any;
     bind_froms: Point[] = [];
+
+    type_name():string{ 
+        return "";
+    }
 
     make_json() : any{}
     from_json(obj: any){}
@@ -202,7 +207,20 @@ abstract class Shape {
     pointermove = (ev: PointerEvent) : void => {}
 
     constructor(){
+        this.id = shapes.length;
         shapes.push(this);
+    }
+
+    make_json_ref(parent: Shape) : any{
+        if(this.id < parent.id){
+            return {
+                "type": this.type_name(),
+                "id": this.id
+            };
+        }
+        else{
+            return this.make_json();
+        }
     }
 
     add_handle(handle: Point, use_this_handle_move: boolean = true){
@@ -314,6 +332,10 @@ class Point extends Shape {
         this.handle_moves = handle_moves;
     }
 
+    type_name():string{ 
+        return "Point";
+    }
+
     make_json() : any{
         return {
             "type": "Point",
@@ -321,7 +343,7 @@ class Point extends Shape {
             "y": this.pos.y,
         };
     }
-
+    
     from_json(obj: any){
         this.pos.x = obj.x;
         this.pos.y = obj.y;
@@ -439,21 +461,69 @@ class LineSegment extends Shape {
         G0.appendChild(this.line);
     }
 
-    make_json() : any{
-        var pts = [];
-        for(let handle of this.handles){
-            var idx = shapes.indexOf(handle);
-            console
-        }
+    type_name():string{ 
+        return "LineSegment";
+    }
 
+    make_json() : any{
+        return {
+            "type": this.type_name(),
+            "id": this.id,
+            "handle1": this.handles[0].make_json_ref(this),
+            "handle2": this.handles[1].make_json_ref(this),
+        };
     }
 
     from_json(obj: any){
+        var handle1 : Point;
+        var handle2 : Point;
 
+        if(obj.handle1.x == undefined){
+
+            handle1 = shapes[obj.handle1.id] as Point;
+        }
+        else{
+
+            handle1 = new Point(new Vec2(0, 0));
+            handle1.from_json(obj.handle1);
+        }
+
+        if(obj.handle2.x == undefined){
+            handle2 = shapes[obj.handle2.id] as Point;
+        }
+        else{
+
+            handle2 = new Point(new Vec2(0, 0));    
+            handle2.from_json(obj.handle2);
+        }
+
+        this.add_handle(handle1);
+        this.add_handle(handle2);
+
+        this.line.setAttribute("x1", "" + this.handles[0].pos.x);
+        this.line.setAttribute("y1", "" + this.handles[0].pos.y);
+
+        this.line.setAttribute("x2", "" + this.handles[1].pos.x);
+        this.line.setAttribute("y2", "" + this.handles[1].pos.y);
+
+        G0.removeChild(this.line);
+        G1.appendChild(this.line);
     }
 
     remove_dom(){
+        if(this.id < this.handles[0].id){
 
+            this.handles[0].remove_dom();
+            array_remove(shapes, this.handles[0]);
+        }
+        if(this.id < this.handles[1].id){
+            
+            this.handles[1].remove_dom();
+            array_remove(shapes, this.handles[1]);
+        }
+
+        array_remove(shapes, this);
+        G1.removeChild(this.line);
     }
     
     select(selected: boolean){
@@ -597,6 +667,10 @@ class Rect extends Shape {
             var line = new LineSegment();
             this.lines.push(line);
         }
+    }
+
+    type_name():string{ 
+        return "Rect." + (this.is_square ? "2" : "1");
     }
 
     set_rect_pos(pt: Vec2, idx: number, clicked:boolean){
@@ -779,6 +853,10 @@ class Circle extends Shape {
         G0.appendChild(this.circle);    
     }
 
+    type_name():string{ 
+        return "Circle." + (this.by_diameter ? "2" : "1");
+    }
+
     set_center(pt: Vec2){
         this.center = this.handles[0].pos.add(pt).mul(0.5);
 
@@ -889,6 +967,10 @@ class Circle extends Shape {
 class Triangle extends Shape {
     lines : Array<LineSegment> = [];
 
+    type_name():string{ 
+        return "Triangle";
+    }
+
     click =(ev: MouseEvent, pt:Vec2): void =>{
         var line = new LineSegment();
 
@@ -932,6 +1014,10 @@ class TextBox extends Shape {
     rect   : SVGRectElement;
     div : HTMLDivElement | null = null;
     clicked_pos : Vec2|null = null;
+
+    type_name():string{ 
+        return "TextBox";
+    }
 
     static ontypeset(self: TextBox){
         var rc = self.div!.getBoundingClientRect();
@@ -991,6 +1077,10 @@ class TextBox extends Shape {
 class Midpoint extends Shape {
     midpoint : Point | null = null;
 
+    type_name():string{ 
+        return "Midpoint";
+    }
+
     calc_midpoint(){
         var p1 = this.handles[0].pos;
         var p2 = this.handles[1].pos;
@@ -1023,6 +1113,10 @@ class Perpendicular extends Shape {
     foot : Point | null = null;
     perpendicular : LineSegment | null = null;
     in_handle_move: boolean = false;
+
+    type_name():string{ 
+        return "Perpendicular";
+    }
 
     handle_move =(handle: Point, pt: Vec2)=>{
         if(this.in_handle_move){
@@ -1075,6 +1169,10 @@ class Intersection extends Shape {
     lines : LineSegment[] = [];
     intersection : Point|null = null;
 
+    type_name():string{ 
+        return "Intersection";
+    }
+
     handle_move =(handle: Point, pt: Vec2)=>{
         this.intersection!.pos = lines_intersection(this.lines[0], this.lines[1]);
         this.intersection!.set_pos();
@@ -1118,6 +1216,10 @@ class Angle extends Shape {
     arc: SVGPathElement|null = null;
 
     static current: Angle;
+
+    type_name():string{ 
+        return "Angle";
+    }
 
     draw_arc(){
         var line1 = this.lines[0];
@@ -1245,14 +1347,14 @@ function tool_click(){
 function make_tool_by_type(tool_type: string): Shape|undefined {
     switch(tool_type){
         case "Point":         return new Point(new Vec2(0,0));
-        case "Midpoint":      return new Midpoint();
-        case "Perpendicular": return new Perpendicular()
         case "LineSegment":  return new LineSegment();
         case "Rect.1":          return new Rect(false);
         case "Rect.2":        return new Rect(true);
         case "Circle.1":       return new Circle(false);
         case "Circle.2":       return new Circle(true);
         case "Triangle":      return new Triangle();
+        case "Midpoint":      return new Midpoint();
+        case "Perpendicular": return new Perpendicular()
         case "Intersection":  return new Intersection();
         case "Angle":         return new Angle();
         case "TextBox":      return new TextBox();
@@ -1260,7 +1362,7 @@ function make_tool_by_type(tool_type: string): Shape|undefined {
 }
 
 function svg_click(ev: MouseEvent){
-    if(capture != null){
+    if(capture != null || tool_type == "select"){
         return;
     }
 
@@ -1268,6 +1370,8 @@ function svg_click(ev: MouseEvent){
 
     if(tool == null){
         tool = make_tool_by_type(tool_type)!;
+        console.assert(tool.type_name() == tool_type);
+
         tools.push(tool);
     }
 
@@ -1292,12 +1396,12 @@ function undo(){
         console.log("no undo");
         return;
     }
-    var tool = tools.pop()!;
+    var shape = tools.pop()!;
 
-    var obj = tool.make_json();
+    var obj = shape.make_json();
     undos.push(obj);
 
-    tool.remove_dom();
+    shape.remove_dom();
 }
 
 function redo(){
@@ -1307,11 +1411,12 @@ function redo(){
     }
 
     var obj = undos.pop();
+    console.log("redo" + obj);
 
-    var tool = make_tool_by_type(obj.type)!;
-    tool.from_json(obj);
+    var shape = make_tool_by_type(obj.type)!;
+    shape.from_json(obj);
     
-    tools.push(tool);
+    tools.push(shape);
 }
 
 export function init_draw(){
