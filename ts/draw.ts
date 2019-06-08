@@ -29,6 +29,9 @@ var new_by_redo = false;
 
 var tool : Shape | null = null;
 
+var stroke_width = 4;
+var this_stroke_width = 2;
+
 class Vec2 {
     x: number;
     y: number;
@@ -332,7 +335,8 @@ class Point extends Shape {
     handle_moves:any[];
     bind_to: Shape|null = null;
 
-    h: number = 0;
+    pos_in_line: number|undefined;
+    angle_in_circle: number|undefined;
 
     constructor(pt:Vec2, handle_moves:any[]= []){
         super();
@@ -498,7 +502,7 @@ class LineSegment extends Shape {
         super();
         this.line = document.createElementNS("http://www.w3.org/2000/svg","line");
         this.line.setAttribute("stroke", "navy");
-        this.line.setAttribute("stroke-width", `${to_svg(3)}`);
+        this.line.setAttribute("stroke-width", `${to_svg(stroke_width)}`);
 
         G0.appendChild(this.line);
     }
@@ -570,7 +574,7 @@ class LineSegment extends Shape {
                 this.handles[1].pos = p2;
                 this.handles[1]
 
-                this.propagate();
+                this.line_propagate();
             }
         }
     }
@@ -589,7 +593,7 @@ class LineSegment extends Shape {
             this.line.setAttribute("x2", "" + this.handles[1].pos.x);
             this.line.setAttribute("y2", "" + this.handles[1].pos.y);
 
-            this.propagate();
+            this.line_propagate();
         }
     }
 
@@ -606,7 +610,7 @@ class LineSegment extends Shape {
             this.line.setAttribute("y2", "" + pt.y);
         }
 
-        this.propagate();
+        this.line_propagate();
     }
 
     click =(ev: MouseEvent, pt:Vec2): void => {
@@ -645,25 +649,24 @@ class LineSegment extends Shape {
 
     adjust(handle: Point, pt: Vec2) {
         if(this.len == 0){
-            handle.h = 0;
+            handle.pos_in_line = 0;
         }
         else{
-            handle.h = this.e.dot(pt.sub(this.p1)) / this.len;
+            handle.pos_in_line = this.e.dot(pt.sub(this.p1)) / this.len;
         }
-        handle.pos = this.p1.add(this.p12.mul(handle.h));
+        handle.pos = this.p1.add(this.p12.mul(handle.pos_in_line));
         handle.set_pos();
     }
 
-    propagate(){
+    line_propagate(){
         this.set_vecs();
-        if(this.bind_froms.length != 0){
 
-            for(let handle of this.bind_froms){
-                handle.pos = this.p1.add(this.p12.mul(handle.h));
-                handle.set_pos();
+        for(let handle of this.bind_froms){
+            console.assert(handle.pos_in_line != undefined);
+            handle.pos = this.p1.add(this.p12.mul(handle.pos_in_line!));
+            handle.set_pos();
 
-                handle.propagate();
-            }
+            handle.propagate();
         }
     }
 }
@@ -885,7 +888,7 @@ class Circle extends Shape {
         this.circle = document.createElementNS("http://www.w3.org/2000/svg","circle");
         this.circle.setAttribute("fill", "none");// "transparent");
         this.circle.setAttribute("stroke", "navy");
-        this.circle.setAttribute("stroke-width", `${to_svg(3)}`);     
+        this.circle.setAttribute("stroke-width", `${to_svg(stroke_width)}`);     
         this.circle.setAttribute("fill-opacity", "0");
         
         G0.appendChild(this.circle);    
@@ -934,7 +937,7 @@ class Circle extends Shape {
             this.set_radius(pt);
         }
 
-        this.propagate();
+        this.circle_propagate();
     }
 
     click =(ev: MouseEvent, pt:Vec2): void =>{
@@ -976,26 +979,24 @@ class Circle extends Shape {
         var theta = Math.atan2(v.y, v.x);
 
         handle.pos = new Vec2(this.center!.x + this.radius * Math.cos(theta), this.center!.y + this.radius * Math.sin(theta));
-        handle.h = theta;
+        handle.angle_in_circle = theta;
 
         handle.set_pos();
     }
 
-    propagate(){
+    circle_propagate(){
         if(this.in_propagate){
             return;
         }
         this.in_propagate = true;
 
-        if(this.bind_froms.length != 0){
+        for(let pt of this.bind_froms){
+            console.assert(pt.angle_in_circle != undefined);
+            pt.pos.x = this.center!.x + this.radius * Math.cos(pt.angle_in_circle!);
+            pt.pos.y = this.center!.y + this.radius * Math.sin(pt.angle_in_circle!);
+            pt.set_pos();
 
-            for(let pt of this.bind_froms){
-                pt.pos.x = this.center!.x + this.radius * Math.cos(pt.h);
-                pt.pos.y = this.center!.y + this.radius * Math.sin(pt.h);
-                pt.set_pos();
-
-                pt.propagate();
-            }
+            pt.propagate();
         }
 
         this.in_propagate = false;
@@ -1094,7 +1095,7 @@ class TextBox extends Shape {
         this.rect.setAttribute("height", `${to_svg(1)}`);
         this.rect.setAttribute("fill", "transparent");
         this.rect.setAttribute("stroke", "navy");
-        this.rect.setAttribute("stroke-width", `${to_svg(3)}`);
+        this.rect.setAttribute("stroke-width", `${to_svg(this_stroke_width)}`);
 
         G1.appendChild(this.rect);
 
@@ -1355,7 +1356,7 @@ class Angle extends Shape {
 
                 this.arc.setAttribute("fill", "none");
                 this.arc.setAttribute("stroke", "red");
-                this.arc.setAttribute("stroke-width", `${to_svg(2)}`);
+                this.arc.setAttribute("stroke-width", `${to_svg(this_stroke_width)}`);
                 this.arc.addEventListener("click", this.arc_click);
                 this.arc.style.cursor = "pointer";
 
