@@ -19,11 +19,13 @@ var angle_dlg_color : HTMLInputElement;
 
 var tool_type = "";
 
-var shapes: Array<Shape> = [];
+var shapes: Map<number, Shape> = new Map<number, Shape>();
+var shapes_lens: number[] = [0];
+var undo_lens: number[] = [];
 var selected_shapes: Shape[] = [];
 
-var tools: Shape[] = [];
 var undos: any[] = [];
+var new_by_redo = false;
 
 var tool : Shape | null = null;
 
@@ -187,11 +189,22 @@ function click_handle(ev: MouseEvent, pt:Vec2) : Point{
     return handle;
 }
 
+function zip(v1:any[], v2:any[]):any[]{
+    var v = [];
+    var min_len = Math.min(v1.length, v2.length);
+    for(var i = 0; i < min_len; i++){
+        v.push([v1[i], v2[i]])
+    }
+
+    return v;
+}
+
 abstract class Shape {
-    id: number;
+    id: number = -1;
     handles : Point[] = [];
     handle_move:any;
     bind_froms: Point[] = [];
+    removed : boolean = false;
 
     type_name():string{ 
         return "";
@@ -199,7 +212,11 @@ abstract class Shape {
 
     make_json() : any{}
     from_json(obj: any){}
-    remove_dom(){}
+
+    remove_dom(){
+        console.log(`rem ${this.type_name()} ${this.id} ${this.removed}`);
+        this.removed = true;
+    }
 
     select(selected: boolean){}
 
@@ -207,8 +224,11 @@ abstract class Shape {
     pointermove = (ev: PointerEvent) : void => {}
 
     constructor(){
-        this.id = shapes.length;
-        shapes.push(this);
+        if(! new_by_redo){
+
+            this.id = shapes.size;
+            shapes.set(this.id, this);
+        }
     }
 
     make_json_ref(parent: Shape) : any{
@@ -250,21 +270,23 @@ function clear_tool(){
     }
     selected_shapes = [];
 
+    shapes_lens.push(shapes.size);
+
     tool = null;
 }
 
 function get_point(ev: MouseEvent) : Point | null{
-    var pt = shapes.find(x => x.constructor.name == "Point" && (x as Point).circle == ev.target) as (Point|undefined);
+    var pt = Array.from(shapes.values()).find(x => x.constructor.name == "Point" && (x as Point).circle == ev.target) as (Point|undefined);
     return pt == undefined ? null : pt;
 }
 
 function get_line(ev: MouseEvent) : LineSegment | null{
-    var line = shapes.find(x => x.constructor.name == "LineSegment" && (x as LineSegment).line == ev.target && (x as LineSegment).handles.length == 2) as (LineSegment|undefined);
+    var line = Array.from(shapes.values()).find(x => x.constructor.name == "LineSegment" && (x as LineSegment).line == ev.target && (x as LineSegment).handles.length == 2) as (LineSegment|undefined);
     return line == undefined ? null : line;
 }
 
 function get_circle(ev: MouseEvent) : Circle | null{
-    var circle = shapes.find(x => x.constructor.name == "Circle" && (x as Circle).circle == ev.target && (x as Circle).handles.length == 2) as (Circle|undefined);
+    var circle = Array.from(shapes.values()).find(x => x.constructor.name == "Circle" && (x as Circle).circle == ev.target && (x as Circle).handles.length == 2) as (Circle|undefined);
     return circle == undefined ? null : circle;
 }
 
@@ -304,7 +326,6 @@ function calc_foot_of_perpendicular(pos:Vec2, line: LineSegment) : Vec2 {
     return foot;
 }
 
-
 class Point extends Shape {
     pos : Vec2;
     circle : SVGCircleElement;
@@ -332,6 +353,19 @@ class Point extends Shape {
         this.handle_moves = handle_moves;
     }
 
+    static new_from_json(obj:any):Point{
+        if(obj.id < shapes.size){
+            return shapes.get(obj.id) as Point;
+        }
+        else{
+
+            var pt = new Point(new Vec2(0, 0));
+            pt.from_json(obj);
+            return pt;    
+        }
+    }
+    
+
     type_name():string{ 
         return "Point";
     }
@@ -339,20 +373,28 @@ class Point extends Shape {
     make_json() : any{
         return {
             "type": "Point",
+            "id": this.id,
             "x": this.pos.x,
             "y": this.pos.y,
         };
     }
     
     from_json(obj: any){
+        console.log(`from ${this.type_name()} ${this.id} ${this.removed}`);
+        this.removed = false;
+
         this.pos.x = obj.x;
         this.pos.y = obj.y;
         this.set_pos();
     }
 
     remove_dom(){
-        array_remove(shapes, this);
-        G2.removeChild(this.circle);
+        console.log(`rem ${this.type_name()} ${this.id} ${this.removed}`);
+        if(! this.removed){
+
+            G2.removeChild(this.circle);
+            this.removed = true;
+        }
     }
 
     click =(ev: MouseEvent, pt:Vec2): void => {
@@ -469,36 +511,15 @@ class LineSegment extends Shape {
         return {
             "type": this.type_name(),
             "id": this.id,
-            "handle1": this.handles[0].make_json_ref(this),
-            "handle2": this.handles[1].make_json_ref(this),
+            "handle_ids": this.handles.map(x => x.id),
         };
     }
 
     from_json(obj: any){
-        var handle1 : Point;
-        var handle2 : Point;
+        console.log(`from ${this.type_name()} ${this.id} ${this.removed}`);
+        this.removed = false;
 
-        if(obj.handle1.x == undefined){
-
-            handle1 = shapes[obj.handle1.id] as Point;
-        }
-        else{
-
-            handle1 = new Point(new Vec2(0, 0));
-            handle1.from_json(obj.handle1);
-        }
-
-        if(obj.handle2.x == undefined){
-            handle2 = shapes[obj.handle2.id] as Point;
-        }
-        else{
-
-            handle2 = new Point(new Vec2(0, 0));    
-            handle2.from_json(obj.handle2);
-        }
-
-        this.add_handle(handle1);
-        this.add_handle(handle2);
+        this.handles = obj.handle_ids.map((id:number) => shapes.get(id));
 
         this.line.setAttribute("x1", "" + this.handles[0].pos.x);
         this.line.setAttribute("y1", "" + this.handles[0].pos.y);
@@ -508,22 +529,17 @@ class LineSegment extends Shape {
 
         G0.removeChild(this.line);
         G1.appendChild(this.line);
+
+        this.set_vecs();
     }
 
     remove_dom(){
-        if(this.id < this.handles[0].id){
+        console.log(`rem ${this.type_name()} ${this.id} ${this.removed}`);
+        if(!this.removed){
 
-            this.handles[0].remove_dom();
-            array_remove(shapes, this.handles[0]);
+            this.removed = true;
+            G1.removeChild(this.line);
         }
-        if(this.id < this.handles[1].id){
-            
-            this.handles[1].remove_dom();
-            array_remove(shapes, this.handles[1]);
-        }
-
-        array_remove(shapes, this);
-        G1.removeChild(this.line);
     }
     
     select(selected: boolean){
@@ -661,19 +677,32 @@ class Rect extends Shape {
     constructor(is_square: boolean){
         super();
         this.is_square = is_square;
-
-        for(var i = 0; i < 4; i++){
-
-            var line = new LineSegment();
-            this.lines.push(line);
-        }
     }
 
     type_name():string{ 
         return "Rect." + (this.is_square ? "2" : "1");
     }
 
-    set_rect_pos(pt: Vec2, idx: number, clicked:boolean){
+    make_json() : any{
+        return {
+            "type": this.type_name(),
+            "id": this.id,
+            "is_square": this.is_square,
+            "line_ids": this.lines.map(x => x.id )
+        };
+    }
+
+    from_json(obj: any){
+        console.log(`from ${this.type_name()} ${this.id} ${this.removed}`);
+        this.removed = false;
+
+        this.is_square = obj.is_square;
+        this.lines = obj.line_ids.map((id:number)=>shapes.get(id));
+        this.handles = this.lines.map(x => x.handles[0] );
+        this.set_rect_pos(null, -1, false);
+    }
+
+    set_rect_pos(pt: Vec2|null, idx: number, clicked:boolean){
         if(this.in_set_rect_pos){
             return;
         }
@@ -685,7 +714,7 @@ class Rect extends Shape {
 
         if(this.handles.length == 1){
 
-            p2 = pt;
+            p2 = pt!;
         }
         else{
 
@@ -708,7 +737,7 @@ class Rect extends Shape {
                 var pa;
                 if(this.handles.length < 4){
         
-                    pa = pt;
+                    pa = pt!;
         
                 }
                 else{
@@ -811,6 +840,15 @@ class Rect extends Shape {
     }
 
     click =(ev: MouseEvent, pt:Vec2): void =>{
+        if(this.lines.length == 0){
+
+            for(var i = 0; i < 4; i++){
+
+                var line = new LineSegment();
+                this.lines.push(line);
+            }
+        }
+
         this.add_handle(click_handle(ev, pt));
 
         this.set_rect_pos(pt, -1, true);
@@ -1371,8 +1409,6 @@ function svg_click(ev: MouseEvent){
     if(tool == null){
         tool = make_tool_by_type(tool_type)!;
         console.assert(tool.type_name() == tool_type);
-
-        tools.push(tool);
     }
 
     if(tool != null){
@@ -1392,16 +1428,28 @@ function svg_pointermove(ev: PointerEvent){
 }
 
 function undo(){
-    if(tools.length == 0){
+    if(shapes_lens.length == 1){
         console.log("no undo");
         return;
     }
-    var shape = tools.pop()!;
 
-    var obj = shape.make_json();
-    undos.push(obj);
+    var n = shapes_lens.pop()!;
+    console.assert(n == shapes.size );
 
-    shape.remove_dom();
+    undo_lens.push(undos.length);
+
+    n = array_last(shapes_lens);
+    while (n < shapes.size) {
+        
+        var shape = shapes.get(shapes.size - 1)!;
+        shapes.delete(shape.id);
+        console.assert(shape.id == shapes.size);
+
+        var obj = shape.make_json();
+        undos.push(obj);
+    
+        shape.remove_dom();
+    }
 }
 
 function redo(){
@@ -1410,13 +1458,26 @@ function redo(){
         return;
     }
 
-    var obj = undos.pop();
-    console.log("redo" + obj);
+    var n = undo_lens.pop()!;
 
-    var shape = make_tool_by_type(obj.type)!;
-    shape.from_json(obj);
-    
-    tools.push(shape);
+    var new_objs = undos.slice(n);
+    undos = undos.slice(0, n);
+
+    new_by_redo = true;
+    var new_shapes = new_objs.map(obj => make_tool_by_type(obj.type));
+    new_by_redo = false;
+
+    for(let [shape, obj] of zip(new_shapes, new_objs)){
+        shape.id = obj.id;
+        shapes.set(shape.id, shape);
+    }
+
+    for(let [shape, obj] of zip(new_shapes, new_objs)){
+        console.assert(shape.type_name() == obj.type);
+        shape.from_json(obj);
+    }
+
+    shapes_lens.push(shapes.size);
 }
 
 export function init_draw(){
