@@ -192,6 +192,10 @@ function click_handle(ev: MouseEvent, pt:Vec2) : Point{
     return handle;
 }
 
+function propagate_event(pendings: Shape[],  shape: Shape){
+
+}
+
 function zip(v1:any[], v2:any[]):any[]{
     var v = [];
     var min_len = Math.min(v1.length, v2.length);
@@ -205,13 +209,14 @@ function zip(v1:any[], v2:any[]):any[]{
 abstract class Shape {
     id: number = -1;
     handles : Point[] = [];
-    handle_move:any;
     bind_froms: Point[] = [];
     removed : boolean = false;
 
     type_name():string{ 
         return "";
     }
+
+    handle_move(handle: Point){}
 
     make_json() : any{}
     from_json(obj: any){}
@@ -250,7 +255,7 @@ abstract class Shape {
 
         if(use_this_handle_move){
 
-            handle.handle_moves.push(this.handle_move);
+            handle.handle_listeners.push(this);
         }
         this.handles.push(handle);
     }
@@ -332,13 +337,13 @@ function calc_foot_of_perpendicular(pos:Vec2, line: LineSegment) : Vec2 {
 class Point extends Shape {
     pos : Vec2;
     circle : SVGCircleElement;
-    handle_moves:any[];
+    handle_listeners:Shape[] = [];
     bind_to: Shape|null = null;
 
     pos_in_line: number|undefined;
     angle_in_circle: number|undefined;
 
-    constructor(pt:Vec2, handle_moves:any[]= []){
+    constructor(pt:Vec2){
         super();
         this.circle = document.createElementNS("http://www.w3.org/2000/svg","circle");
         this.circle.setAttribute("r", `${to_svg(5)}`);
@@ -353,8 +358,6 @@ class Point extends Shape {
         this.set_pos();
     
         G2.appendChild(this.circle);
-
-        this.handle_moves = handle_moves;
     }
 
     static new_from_json(obj:any):Point{
@@ -454,9 +457,13 @@ class Point extends Shape {
     }
 
     propagate(){
-        for(let handle_move of this.handle_moves){
-            handle_move(this, this.pos);
+        for(let shape of this.handle_listeners){
+            shape.handle_move(this);
         }
+    }
+
+    make_dependency(){
+
     }
 
     pointermove =(ev: PointerEvent)=>{
@@ -597,17 +604,17 @@ class LineSegment extends Shape {
         }
     }
 
-    handle_move =(handle: Point, pt: Vec2)=>{
+    handle_move =(handle: Point)=>{
         var idx = this.handles.indexOf(handle);
         if(idx == 0){
 
-            this.line.setAttribute("x1", "" + pt.x);
-            this.line.setAttribute("y1", "" + pt.y);
+            this.line.setAttribute("x1", "" + handle.pos.x);
+            this.line.setAttribute("y1", "" + handle.pos.y);
         }
         else{
 
-            this.line.setAttribute("x2", "" + pt.x);
-            this.line.setAttribute("y2", "" + pt.y);
+            this.line.setAttribute("x2", "" + handle.pos.x);
+            this.line.setAttribute("y2", "" + handle.pos.y);
         }
 
         this.line_propagate();
@@ -837,9 +844,9 @@ class Rect extends Shape {
         this.in_set_rect_pos = false;
     }
 
-    handle_move =(handle: Point, pt: Vec2)=>{
+    handle_move =(handle: Point)=>{
         var idx = this.handles.indexOf(handle);
-        this.set_rect_pos(pt, idx, false);
+        this.set_rect_pos(handle.pos, idx, false);
     }
 
     click =(ev: MouseEvent, pt:Vec2): void =>{
@@ -910,31 +917,31 @@ class Circle extends Shape {
         this.circle!.setAttribute("r", "" +  this.radius );
     }
 
-    handle_move =(handle: Point, pt: Vec2)=>{
+    handle_move =(handle: Point)=>{
         var idx = this.handles.indexOf(handle);        
 
         if(idx == 0){
 
             if(this.by_diameter){
 
-                this.handles[0].pos = pt;
+                this.handles[0].pos = handle.pos;
                 this.set_center(this.handles[1].pos);
             }
             else{
     
-                this.center = pt;
-                this.circle.setAttribute("cx", "" + pt.x);
-                this.circle.setAttribute("cy", "" + pt.y);
+                this.center = handle.pos;
+                this.circle.setAttribute("cx", "" + handle.pos.x);
+                this.circle.setAttribute("cy", "" + handle.pos.y);
             }
     
             this.set_radius(this.handles[1].pos);
         }
         else{
             if(this.by_diameter){
-                this.set_center(pt);
+                this.set_center(handle.pos);
             }
 
-            this.set_radius(pt);
+            this.set_radius(handle.pos);
         }
 
         this.circle_propagate();
@@ -1127,7 +1134,7 @@ class Midpoint extends Shape {
         return new Vec2((p1.x + p2.x)/2, (p1.y + p2.y)/2);
     }
 
-    handle_move =(handle: Point, pt: Vec2)=>{
+    handle_move =(handle: Point)=>{
         this.midpoint!.pos = this.calc_midpoint();
         this.midpoint!.set_pos();
 
@@ -1157,7 +1164,7 @@ class Perpendicular extends Shape {
         return "Perpendicular";
     }
 
-    handle_move =(handle: Point, pt: Vec2)=>{
+    handle_move =(handle: Point)=>{
         if(this.in_handle_move){
             return;
         }
@@ -1185,8 +1192,8 @@ class Perpendicular extends Shape {
                 return;
             }
 
-            this.line.handles[0].handle_moves.push(this.handle_move);
-            this.line.handles[1].handle_moves.push(this.handle_move);
+            this.line.handles[0].handle_listeners.push(this);
+            this.line.handles[1].handle_listeners.push(this);
 
             this.foot = new Point( calc_foot_of_perpendicular(this.handles[0].pos, this.line!) );
 
@@ -1212,7 +1219,7 @@ class Intersection extends Shape {
         return "Intersection";
     }
 
-    handle_move =(handle: Point, pt: Vec2)=>{
+    handle_move =(handle: Point)=>{
         this.intersection!.pos = lines_intersection(this.lines[0], this.lines[1]);
         this.intersection!.set_pos();
         this.intersection!.propagate();
@@ -1236,8 +1243,8 @@ class Intersection extends Shape {
 
                 for(let line2 of this.lines){
 
-                    line2.handles[0].handle_moves.push(this.handle_move);
-                    line2.handles[1].handle_moves.push(this.handle_move);
+                    line2.handles[0].handle_listeners.push(this);
+                    line2.handles[1].handle_listeners.push(this);
                 }
 
                 clear_tool();
@@ -1299,7 +1306,7 @@ class Angle extends Shape {
         this.arc!.setAttribute("d", d);
     }
 
-    handle_move =(handle: Point, pt: Vec2)=>{
+    handle_move =(handle: Point)=>{
         this.draw_arc();
     }
 
@@ -1366,8 +1373,8 @@ class Angle extends Shape {
 
                 for(let line2 of this.lines){
 
-                    line2.handles[0].handle_moves.push(this.handle_move);
-                    line2.handles[1].handle_moves.push(this.handle_move);
+                    line2.handles[0].handle_listeners.push(this);
+                    line2.handles[1].handle_listeners.push(this);
                 }
 
                 clear_tool();
