@@ -192,10 +192,6 @@ function click_handle(ev: MouseEvent, pt:Vec2) : Point{
     return handle;
 }
 
-function propagate_event(pendings: Shape[],  shape: Shape){
-
-}
-
 function zip(v1:any[], v2:any[]):any[]{
     var v = [];
     var min_len = Math.min(v1.length, v2.length);
@@ -206,17 +202,69 @@ function zip(v1:any[], v2:any[]):any[]{
     return v;
 }
 
+class ShapeEvent{
+    destination: Shape;
+    sources: Shape[];
+
+    constructor(destination: Shape, sources: Shape[]){
+        this.destination = destination;
+        this.sources = sources;
+    }
+}
+
+class EventQueue {
+    events : ShapeEvent[] = [];
+    timeout_id:any = null;
+
+    add_event(destination:Shape, source: Shape){
+        // if(this.timeout_id == null){
+        //     this.timeout_id = setTimeout(this.process_queue, 1);
+        // }
+
+        var event = this.events.find(x=>x.destination == destination);
+        if(event == undefined){
+            this.events.push( new ShapeEvent(destination, [source]) );
+        }
+        else{
+            if(!event.sources.includes(source)){
+
+                event.sources.push(source);
+            }
+        }
+    }
+
+    process_queue =()=>{
+        var processed : Shape[] = [];
+
+        console.log("");
+        while(this.events.length != 0){
+            console.log("events:" + this.events.map(x=>x.destination).map(x=>`${x.type_name()} ${x.id}`).join(" "));
+            var event = this.events[0];
+            if(! processed.includes(event.destination)){
+                processed.push(event.destination);
+
+                event.destination.process_event(event.sources);
+            }
+            this.events.shift();
+        }
+
+        this.timeout_id = null;
+    }
+}
+var event_queue : EventQueue = new EventQueue();
+
 abstract class Shape {
     id: number = -1;
     handles : Point[] = [];
     bind_froms: Point[] = [];
     removed : boolean = false;
+    shape_listeners:Shape[] = [];
 
     type_name():string{ 
         return "";
     }
 
-    handle_move(handle: Point){}
+    process_event(sources: Shape[]){}
 
     make_json() : any{}
     from_json(obj: any){}
@@ -263,6 +311,13 @@ abstract class Shape {
     bind(pt: Point){
         this.bind_froms.push(pt);
         pt.bind_to = this;
+    }
+
+    shape_propagate(){
+        for(let shape of this.shape_listeners){
+            
+            event_queue.add_event(shape, this);
+        }
     }
 }
 
@@ -453,17 +508,25 @@ class Point extends Shape {
 
         capture = this;
         this.circle.setPointerCapture(ev.pointerId);
-        console.log("handle pointer down");
     }
 
     propagate(){
         for(let shape of this.handle_listeners){
-            shape.handle_move(this);
+            
+            event_queue.add_event(shape, this);
         }
     }
 
-    make_dependency(){
+    make_point_to_shape_dependency(pendings:Map<Shape, Point[]>){
+        for(let shape of this.handle_listeners){
+            if(pendings.has(shape)){
 
+                pendings.get(shape)!.push(this);
+            }
+            else{
+                pendings.set(shape, [this]);
+            }
+        }
     }
 
     pointermove =(ev: PointerEvent)=>{
@@ -474,11 +537,11 @@ class Point extends Shape {
         if(capture != this){
             return;
         }
-        console.log("handle pointer move");
 
         this.adjust_point(ev);
 
         this.propagate();
+        event_queue.process_queue();
     }
 
     pointerup =(ev: PointerEvent)=>{
@@ -486,14 +549,13 @@ class Point extends Shape {
             return;
         }
 
-        console.log("handle pointer up");
-
         this.circle.releasePointerCapture(ev.pointerId);
         capture = null;
 
         this.adjust_point(ev);
 
         this.propagate();
+        event_queue.process_queue();
     }
 }
 
@@ -604,17 +666,23 @@ class LineSegment extends Shape {
         }
     }
 
-    handle_move =(handle: Point)=>{
-        var idx = this.handles.indexOf(handle);
-        if(idx == 0){
+    process_event =(sources: Shape[])=>{
+        for(let src of sources){
+            if(src == this.handles[0]){
 
-            this.line.setAttribute("x1", "" + handle.pos.x);
-            this.line.setAttribute("y1", "" + handle.pos.y);
-        }
-        else{
-
-            this.line.setAttribute("x2", "" + handle.pos.x);
-            this.line.setAttribute("y2", "" + handle.pos.y);
+                var handle: Point = this.handles[0];
+                this.line.setAttribute("x1", "" + handle.pos.x);
+                this.line.setAttribute("y1", "" + handle.pos.y);
+            }
+            else if(src == this.handles[1]){
+                
+                var handle: Point = this.handles[1];
+                this.line.setAttribute("x2", "" + handle.pos.x);
+                this.line.setAttribute("y2", "" + handle.pos.y);
+                }
+            else{
+                console.assert(false);
+            }
         }
 
         this.line_propagate();
@@ -675,6 +743,8 @@ class LineSegment extends Shape {
 
             handle.propagate();
         }
+
+        this.shape_propagate();
     }
 }
 
@@ -844,7 +914,13 @@ class Rect extends Shape {
         this.in_set_rect_pos = false;
     }
 
-    handle_move =(handle: Point)=>{
+    process_event =(sources: Shape[])=>{
+        if(sources.length != 1){
+            return;
+        }
+        console.assert(sources.length == 1 && sources[0].constructor.name == "Point");
+        var handle = sources[0] as Point;
+
         var idx = this.handles.indexOf(handle);
         this.set_rect_pos(handle.pos, idx, false);
     }
@@ -917,31 +993,34 @@ class Circle extends Shape {
         this.circle!.setAttribute("r", "" +  this.radius );
     }
 
-    handle_move =(handle: Point)=>{
-        var idx = this.handles.indexOf(handle);        
+    process_event =(sources: Shape[])=>{
+        for(let src of sources){
+            if(src == this.handles[0]){
 
-        if(idx == 0){
+                if(this.by_diameter){
 
-            if(this.by_diameter){
+                    this.set_center(this.handles[1].pos);
+                }
+                else{
+        
+                    this.center = this.handles[0].pos;
+                    this.circle.setAttribute("cx", "" + this.handles[0].pos.x);
+                    this.circle.setAttribute("cy", "" + this.handles[0].pos.y);
+                }
+        
+                this.set_radius(this.handles[1].pos);
+            }
+            else if(src == this.handles[1]){
 
-                this.handles[0].pos = handle.pos;
-                this.set_center(this.handles[1].pos);
+                if(this.by_diameter){
+                    this.set_center(this.handles[1].pos);
+                }
+
+                this.set_radius(this.handles[1].pos);
             }
             else{
-    
-                this.center = handle.pos;
-                this.circle.setAttribute("cx", "" + handle.pos.x);
-                this.circle.setAttribute("cy", "" + handle.pos.y);
+                console.assert(false);
             }
-    
-            this.set_radius(this.handles[1].pos);
-        }
-        else{
-            if(this.by_diameter){
-                this.set_center(handle.pos);
-            }
-
-            this.set_radius(handle.pos);
         }
 
         this.circle_propagate();
@@ -1134,7 +1213,7 @@ class Midpoint extends Shape {
         return new Vec2((p1.x + p2.x)/2, (p1.y + p2.y)/2);
     }
 
-    handle_move =(handle: Point)=>{
+    process_event =(sources: Shape[])=>{
         this.midpoint!.pos = this.calc_midpoint();
         this.midpoint!.set_pos();
 
@@ -1164,7 +1243,7 @@ class Perpendicular extends Shape {
         return "Perpendicular";
     }
 
-    handle_move =(handle: Point)=>{
+    process_event =(sources: Shape[])=>{
         if(this.in_handle_move){
             return;
         }
@@ -1192,8 +1271,7 @@ class Perpendicular extends Shape {
                 return;
             }
 
-            this.line.handles[0].handle_listeners.push(this);
-            this.line.handles[1].handle_listeners.push(this);
+            this.line.shape_listeners.push(this);
 
             this.foot = new Point( calc_foot_of_perpendicular(this.handles[0].pos, this.line!) );
 
@@ -1219,7 +1297,7 @@ class Intersection extends Shape {
         return "Intersection";
     }
 
-    handle_move =(handle: Point)=>{
+    process_event =(sources: Shape[])=>{
         this.intersection!.pos = lines_intersection(this.lines[0], this.lines[1]);
         this.intersection!.set_pos();
         this.intersection!.propagate();
@@ -1243,8 +1321,7 @@ class Intersection extends Shape {
 
                 for(let line2 of this.lines){
 
-                    line2.handles[0].handle_listeners.push(this);
-                    line2.handles[1].handle_listeners.push(this);
+                    line2.shape_listeners.push(this);
                 }
 
                 clear_tool();
@@ -1306,7 +1383,7 @@ class Angle extends Shape {
         this.arc!.setAttribute("d", d);
     }
 
-    handle_move =(handle: Point)=>{
+    process_event =(sources: Shape[])=>{
         this.draw_arc();
     }
 
@@ -1373,8 +1450,7 @@ class Angle extends Shape {
 
                 for(let line2 of this.lines){
 
-                    line2.handles[0].handle_listeners.push(this);
-                    line2.handles[1].handle_listeners.push(this);
+                    line2.shape_listeners.push(this);
                 }
 
                 clear_tool();
