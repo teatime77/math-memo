@@ -233,6 +233,11 @@ class EventQueue {
         }
     }
 
+    add_event_make_event_graph(destination:Shape, source: Shape){
+        this.add_event(destination, source);
+        destination.make_event_graph(source);
+    }
+
     process_queue =()=>{
         var processed : Shape[] = [];
 
@@ -313,10 +318,14 @@ abstract class Shape {
         pt.bind_to = this;
     }
 
-    shape_propagate(){
+    make_event_graph(src:Shape|null){
         for(let shape of this.shape_listeners){
             
-            event_queue.add_event(shape, this);
+            event_queue.add_event_make_event_graph(shape, this);
+        }
+        for(let pt of this.bind_froms){
+
+            event_queue.add_event_make_event_graph(pt, this);
         }
     }
 }
@@ -510,10 +519,12 @@ class Point extends Shape {
         this.circle.setPointerCapture(ev.pointerId);
     }
 
-    propagate(){
+    make_event_graph(src:Shape|null){
+        super.make_event_graph(src);
+
         for(let shape of this.handle_listeners){
             
-            event_queue.add_event(shape, this);
+            event_queue.add_event_make_event_graph(shape, this);
         }
     }
 
@@ -540,7 +551,7 @@ class Point extends Shape {
 
         this.adjust_point(ev);
 
-        this.propagate();
+        this.make_event_graph(null);
         event_queue.process_queue();
     }
 
@@ -554,7 +565,7 @@ class Point extends Shape {
 
         this.adjust_point(ev);
 
-        this.propagate();
+        this.make_event_graph(null);
         event_queue.process_queue();
     }
 }
@@ -637,7 +648,6 @@ class LineSegment extends Shape {
 
         if(this.handles.length != 0){
             this.handles[0].pos = p1;
-            this.handles[0].propagate();
 
             if(this.handles.length == 2){
                 this.handles[1].pos = p2;
@@ -740,11 +750,7 @@ class LineSegment extends Shape {
             console.assert(handle.pos_in_line != undefined);
             handle.pos = this.p1.add(this.p12.mul(handle.pos_in_line!));
             handle.set_pos();
-
-            handle.propagate();
         }
-
-        this.shape_propagate();
     }
 }
 
@@ -899,19 +905,28 @@ class Rect extends Shape {
             this.handles[2].pos = p3;
             this.handles[2].set_pos();
     
-            this.handles[2].propagate();    
-
             if(this.handles.length == 4){
 
                 this.handles[3].pos = p4;
-                this.handles[3].set_pos();
-        
-                this.handles[3].propagate();    
+                this.handles[3].set_pos();        
             }
-    
         }
 
         this.in_set_rect_pos = false;
+    }
+
+    make_event_graph(src:Shape|null){
+        super.make_event_graph(src);
+
+        event_queue.add_event_make_event_graph(this.handles[0], this);
+
+        if(src == this.handles[0] || src == this.handles[1]){
+
+            event_queue.add_event_make_event_graph(this.handles[2], this);
+        }
+        else{
+            console.assert(src == this.handles[2]);
+        }
     }
 
     process_event =(sources: Shape[])=>{
@@ -1081,8 +1096,6 @@ class Circle extends Shape {
             pt.pos.x = this.center!.x + this.radius * Math.cos(pt.angle_in_circle!);
             pt.pos.y = this.center!.y + this.radius * Math.sin(pt.angle_in_circle!);
             pt.set_pos();
-
-            pt.propagate();
         }
 
         this.in_propagate = false;
@@ -1213,11 +1226,15 @@ class Midpoint extends Shape {
         return new Vec2((p1.x + p2.x)/2, (p1.y + p2.y)/2);
     }
 
+    make_event_graph(src:Shape|null){
+        super.make_event_graph(src);
+
+        event_queue.add_event_make_event_graph(this.midpoint!, this);
+    }
+
     process_event =(sources: Shape[])=>{
         this.midpoint!.pos = this.calc_midpoint();
         this.midpoint!.set_pos();
-
-        this.midpoint!.propagate();
     }
 
     click =(ev: MouseEvent, pt:Vec2): void => {
@@ -1243,6 +1260,12 @@ class Perpendicular extends Shape {
         return "Perpendicular";
     }
 
+    make_event_graph(src:Shape|null){
+        super.make_event_graph(src);
+
+        event_queue.add_event_make_event_graph(this.foot!, this);
+    }
+
     process_event =(sources: Shape[])=>{
         if(this.in_handle_move){
             return;
@@ -1251,8 +1274,6 @@ class Perpendicular extends Shape {
 
         this.foot!.pos = calc_foot_of_perpendicular(this.handles[0].pos, this.line!);
         this.foot!.set_pos();
-
-        this.foot!.propagate();
 
         this.perpendicular!.set_poins(this.handles[0].pos, this.foot!.pos);
 
@@ -1297,10 +1318,15 @@ class Intersection extends Shape {
         return "Intersection";
     }
 
+    make_event_graph(src:Shape|null){
+        super.make_event_graph(src);
+
+        event_queue.add_event_make_event_graph(this.intersection!, this);
+    }
+
     process_event =(sources: Shape[])=>{
         this.intersection!.pos = lines_intersection(this.lines[0], this.lines[1]);
         this.intersection!.set_pos();
-        this.intersection!.propagate();
     }
 
     click =(ev: MouseEvent, pt:Vec2): void => {
