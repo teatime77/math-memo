@@ -165,8 +165,8 @@ function click_handle(ev: MouseEvent, pt:Vec2) : Point{
         var line = get_line(ev);
         if(line != null){
 
-            handle = new Point(new Vec2(0,0));
-            line.adjust(handle, pt);
+            handle = new Point(pt);
+            line.adjust(handle);
 
             line.bind(handle)
         }
@@ -174,8 +174,8 @@ function click_handle(ev: MouseEvent, pt:Vec2) : Point{
             var circle = get_circle(ev);
             if(circle != null){
 
-                handle = new Point(new Vec2(0,0));
-                circle.adjust(handle, pt);
+                handle = new Point(pt);
+                circle.adjust(handle);
 
                 circle.bind(handle)
             }
@@ -429,7 +429,6 @@ class Point extends Shape {
         }
     }
     
-
     type_name():string{ 
         return "Point";
     }
@@ -486,20 +485,31 @@ class Point extends Shape {
     }
 
     adjust_point(ev: PointerEvent){
-        var pt = get_svg_point(ev);
+        this.pos = get_svg_point(ev);
         if(this.bind_to != null){
 
             if(this.bind_to.constructor.name == "LineSegment"){
-                (this.bind_to as LineSegment).adjust(this, pt);
+                (this.bind_to as LineSegment).adjust(this);
             }
             else if(this.bind_to.constructor.name == "Circle"){
-                (this.bind_to as Circle).adjust(this, pt);
+                (this.bind_to as Circle).adjust(this);
             }
         }
         else{
 
-            this.pos = pt;
             this.set_pos();
+        }
+    }
+
+    process_event =(sources: Shape[])=>{
+        if(this.bind_to != null){
+
+            if(this.bind_to.constructor.name == "LineSegment"){
+                (this.bind_to as LineSegment).adjust(this);
+            }
+            else if(this.bind_to.constructor.name == "Circle"){
+                (this.bind_to as Circle).adjust(this);
+            }
         }
     }
 
@@ -625,7 +635,7 @@ class LineSegment extends Shape {
                 this.handles[1].pos = p2;
                 this.handles[1]
 
-                this.line_propagate();
+                this.set_vecs();
             }
         }
     }
@@ -644,7 +654,7 @@ class LineSegment extends Shape {
             this.line.setAttribute("x2", "" + this.handles[1].pos.x);
             this.line.setAttribute("y2", "" + this.handles[1].pos.y);
 
-            this.line_propagate();
+            this.set_vecs();
         }
     }
 
@@ -669,7 +679,6 @@ class LineSegment extends Shape {
         }
 
         this.set_vecs();
-        // this.line_propagate();
     }
 
     click =(ev: MouseEvent, pt:Vec2): void => {
@@ -706,25 +715,15 @@ class LineSegment extends Shape {
         this.len = this.p12.len();
     }
 
-    adjust(handle: Point, pt: Vec2) {
+    adjust(handle: Point) {
         if(this.len == 0){
             handle.pos_in_line = 0;
         }
         else{
-            handle.pos_in_line = this.e.dot(pt.sub(this.p1)) / this.len;
+            handle.pos_in_line = this.e.dot(handle.pos.sub(this.p1)) / this.len;
         }
         handle.pos = this.p1.add(this.p12.mul(handle.pos_in_line));
         handle.set_pos();
-    }
-
-    line_propagate(){
-        this.set_vecs();
-
-        for(let handle of this.bind_froms){
-            console.assert(handle.pos_in_line != undefined);
-            handle.pos = this.p1.add(this.p12.mul(handle.pos_in_line!));
-            handle.set_pos();
-        }
     }
 }
 
@@ -956,7 +955,6 @@ class Circle extends Shape {
     circle: SVGCircleElement;
     center: Vec2|null = null;
     radius: number = to_svg(1);
-    in_propagate : boolean = false;
     by_diameter:boolean 
 
     constructor(by_diameter:boolean){
@@ -1018,8 +1016,6 @@ class Circle extends Shape {
                 console.assert(false);
             }
         }
-
-        this.circle_propagate();
     }
 
     click =(ev: MouseEvent, pt:Vec2): void =>{
@@ -1056,30 +1052,14 @@ class Circle extends Shape {
         this.set_radius(pt);
     }
 
-    adjust(handle: Point, pt: Vec2) {
-        var v = pt.sub(this.center!);
+    adjust(handle: Point) {
+        var v = handle.pos.sub(this.center!);
         var theta = Math.atan2(v.y, v.x);
 
         handle.pos = new Vec2(this.center!.x + this.radius * Math.cos(theta), this.center!.y + this.radius * Math.sin(theta));
         handle.angle_in_circle = theta;
 
         handle.set_pos();
-    }
-
-    circle_propagate(){
-        if(this.in_propagate){
-            return;
-        }
-        this.in_propagate = true;
-
-        for(let pt of this.bind_froms){
-            console.assert(pt.angle_in_circle != undefined);
-            pt.pos.x = this.center!.x + this.radius * Math.cos(pt.angle_in_circle!);
-            pt.pos.y = this.center!.y + this.radius * Math.sin(pt.angle_in_circle!);
-            pt.set_pos();
-        }
-
-        this.in_propagate = false;
     }
 }
 
@@ -1393,7 +1373,6 @@ class Angle extends Shape {
     process_event =(sources: Shape[])=>{
         this.draw_arc();
     }
-
 
     ok_click(){
         console.log("angle dlg ok click");
