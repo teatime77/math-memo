@@ -255,7 +255,6 @@ var event_queue : EventQueue = new EventQueue();
 abstract class Shape {
     id: number = -1;
     handles : Point[] = [];
-    bind_froms: Point[] = [];
     removed : boolean = false;
     shape_listeners:Shape[] = [];
 
@@ -308,7 +307,7 @@ abstract class Shape {
     }
 
     bind(pt: Point){
-        this.bind_froms.push(pt);
+        this.shape_listeners.push(pt);
         pt.bind_to = this;
     }
 
@@ -316,10 +315,6 @@ abstract class Shape {
         for(let shape of this.shape_listeners){
             
             event_queue.add_event_make_event_graph(shape, this);
-        }
-        for(let pt of this.bind_froms){
-
-            event_queue.add_event_make_event_graph(pt, this);
         }
     }
 }
