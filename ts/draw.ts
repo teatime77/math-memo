@@ -214,13 +214,8 @@ class ShapeEvent{
 
 class EventQueue {
     events : ShapeEvent[] = [];
-    timeout_id:any = null;
 
     add_event(destination:Shape, source: Shape){
-        // if(this.timeout_id == null){
-        //     this.timeout_id = setTimeout(this.process_queue, 1);
-        // }
-
         var event = this.events.find(x=>x.destination == destination);
         if(event == undefined){
             this.events.push( new ShapeEvent(destination, [source]) );
@@ -234,6 +229,7 @@ class EventQueue {
     }
 
     add_event_make_event_graph(destination:Shape, source: Shape){
+        console.log(`destination:${destination.type_name()} ${destination.id} source:${source.type_name()} ${source.id}`);
         this.add_event(destination, source);
         destination.make_event_graph(source);
     }
@@ -252,8 +248,6 @@ class EventQueue {
             }
             this.events.shift();
         }
-
-        this.timeout_id = null;
     }
 }
 var event_queue : EventQueue = new EventQueue();
@@ -308,7 +302,7 @@ abstract class Shape {
 
         if(use_this_handle_move){
 
-            handle.handle_listeners.push(this);
+            handle.shape_listeners.push(this);
         }
         this.handles.push(handle);
     }
@@ -401,7 +395,6 @@ function calc_foot_of_perpendicular(pos:Vec2, line: LineSegment) : Vec2 {
 class Point extends Shape {
     pos : Vec2;
     circle : SVGCircleElement;
-    handle_listeners:Shape[] = [];
     bind_to: Shape|null = null;
 
     pos_in_line: number|undefined;
@@ -517,27 +510,6 @@ class Point extends Shape {
 
         capture = this;
         this.circle.setPointerCapture(ev.pointerId);
-    }
-
-    make_event_graph(src:Shape|null){
-        super.make_event_graph(src);
-
-        for(let shape of this.handle_listeners){
-            
-            event_queue.add_event_make_event_graph(shape, this);
-        }
-    }
-
-    make_point_to_shape_dependency(pendings:Map<Shape, Point[]>){
-        for(let shape of this.handle_listeners){
-            if(pendings.has(shape)){
-
-                pendings.get(shape)!.push(this);
-            }
-            else{
-                pendings.set(shape, [this]);
-            }
-        }
     }
 
     pointermove =(ev: PointerEvent)=>{
@@ -677,6 +649,7 @@ class LineSegment extends Shape {
     }
 
     process_event =(sources: Shape[])=>{
+        console.log("process");
         for(let src of sources){
             if(src == this.handles[0]){
 
@@ -689,13 +662,14 @@ class LineSegment extends Shape {
                 var handle: Point = this.handles[1];
                 this.line.setAttribute("x2", "" + handle.pos.x);
                 this.line.setAttribute("y2", "" + handle.pos.y);
-                }
+            }
             else{
-                console.assert(false);
+                console.assert(src.type_name().startsWith("Rect."));
             }
         }
 
-        this.line_propagate();
+        this.set_vecs();
+        // this.line_propagate();
     }
 
     click =(ev: MouseEvent, pt:Vec2): void => {
@@ -918,7 +892,7 @@ class Rect extends Shape {
     make_event_graph(src:Shape|null){
         super.make_event_graph(src);
 
-        event_queue.add_event_make_event_graph(this.handles[0], this);
+        // event_queue.add_event_make_event_graph(this.handles[0], this);
 
         if(src == this.handles[0] || src == this.handles[1]){
 
@@ -927,13 +901,20 @@ class Rect extends Shape {
         else{
             console.assert(src == this.handles[2]);
         }
+
+        for(let line of this.lines){
+
+            event_queue.add_event_make_event_graph(line, this);
+        }
     }
 
     process_event =(sources: Shape[])=>{
-        if(sources.length != 1){
-            return;
+        for(let source of sources){
+            console.assert(source.constructor.name == "Point");
+            var i = this.handles.indexOf(source as Point);
+            console.assert([0, 1, 2].includes(i));
         }
-        console.assert(sources.length == 1 && sources[0].constructor.name == "Point");
+
         var handle = sources[0] as Point;
 
         var idx = this.handles.indexOf(handle);
