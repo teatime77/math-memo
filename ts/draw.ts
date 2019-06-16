@@ -1,6 +1,8 @@
 /// <reference path="util.ts" />
 namespace MathMemo{
 
+const infinity = 20;
+
 declare var MathJax:any;
 var capture: Point|null = null
 
@@ -259,7 +261,7 @@ abstract class Shape {
     shape_listeners:Shape[] = [];
 
     type_name():string{ 
-        return "";
+        return this.constructor.name;
     }
 
     process_event(sources: Shape[]){}
@@ -342,7 +344,7 @@ function get_point(ev: MouseEvent) : Point | null{
 }
 
 function get_line(ev: MouseEvent) : LineSegment | null{
-    var line = Array.from(shapes.values()).find(x => x.constructor.name == "LineSegment" && (x as LineSegment).line == ev.target && (x as LineSegment).handles.length == 2) as (LineSegment|undefined);
+    var line = Array.from(shapes.values()).find(x => x instanceof LineSegment && (x as LineSegment).line == ev.target && (x as LineSegment).handles.length == 2) as (LineSegment|undefined);
     return line == undefined ? null : line;
 }
 
@@ -457,7 +459,19 @@ class Point extends Shape {
 
     click =(ev: MouseEvent, pt:Vec2): void => {
         this.pos = pt;
-        this.set_pos();
+
+        var line = get_line(ev);
+
+        if(line == null){
+
+            this.set_pos();
+        }
+        else{
+
+            line.bind(this)
+            line.adjust(this);
+        }
+
         clear_tool();
     }
 
@@ -483,8 +497,8 @@ class Point extends Shape {
         this.pos = get_svg_point(ev);
         if(this.bind_to != null){
 
-            if(this.bind_to.constructor.name == "LineSegment"){
-                (this.bind_to as LineSegment).adjust(this);
+            if(this.bind_to instanceof LineSegment){
+                    (this.bind_to as LineSegment).adjust(this);
             }
             else if(this.bind_to.constructor.name == "Circle"){
                 (this.bind_to as Circle).adjust(this);
@@ -499,8 +513,8 @@ class Point extends Shape {
     process_event =(sources: Shape[])=>{
         if(this.bind_to != null){
 
-            if(this.bind_to.constructor.name == "LineSegment"){
-                (this.bind_to as LineSegment).adjust(this);
+            if(this.bind_to instanceof LineSegment){
+                    (this.bind_to as LineSegment).adjust(this);
             }
             else if(this.bind_to.constructor.name == "Circle"){
                 (this.bind_to as Circle).adjust(this);
@@ -562,10 +576,6 @@ class LineSegment extends Shape {
         this.line.setAttribute("stroke-width", `${to_svg(stroke_width)}`);
 
         G0.appendChild(this.line);
-    }
-
-    type_name():string{ 
-        return "LineSegment";
     }
 
     make_json() : any{
@@ -669,7 +679,7 @@ class LineSegment extends Shape {
                 this.line.setAttribute("y2", "" + handle.pos.y);
             }
             else{
-                console.assert(src.type_name().startsWith("Rect."));
+                console.assert(src instanceof Rect || src instanceof ParallelLine);
             }
         }
 
@@ -1265,6 +1275,62 @@ class Perpendicular extends Shape {
     }
 }
 
+class ParallelLine extends Shape {
+    line1 : LineSegment | null = null;
+    line2 : LineSegment | null = null;
+    point : Point|null = null;
+
+    calc_parallel_line(){
+        var p1 = this.point!.pos.add(this.line1!.e.mul(infinity));
+        var p2 = this.point!.pos.sub(this.line1!.e.mul(infinity));
+
+        this.line2!.set_poins(p1, p2);
+    }
+
+    make_event_graph(src:Shape|null){
+        super.make_event_graph(src);
+
+        event_queue.add_event_make_event_graph(this.line2!, this);
+    }
+
+    process_event =(sources: Shape[])=>{
+        this.calc_parallel_line();
+    }
+
+    click =(ev: MouseEvent, pt:Vec2): void => {
+        if(this.line1 == null){
+
+            this.line1 = get_line(ev);
+            if(this.line1 == null){
+                return;
+            }
+
+            this.line1.select(true);
+            this.line1.shape_listeners.push(this);
+        }
+        else {
+
+            this.point = get_point(ev);
+            if(this.point == null){
+                return;
+            }
+
+            this.point.shape_listeners.push(this);
+
+            this.line2 = new LineSegment();
+            this.line2.line.style.cursor = "move";
+
+            this.line2.add_handle(new Point(new Vec2(0,0)));
+            this.line2.add_handle(new Point(new Vec2(0,0)));
+            this.calc_parallel_line();
+            for(let handle of this.line2.handles){
+                handle.set_pos();
+            }
+
+            clear_tool();
+        }
+    }
+}
 
 class Intersection extends Shape {
     lines : LineSegment[] = [];
@@ -1458,6 +1524,7 @@ function make_tool_by_type(tool_type: string): Shape|undefined {
         case "Triangle":      return new Triangle();
         case "Midpoint":      return new Midpoint();
         case "Perpendicular": return new Perpendicular()
+        case "ParallelLine": return new ParallelLine()
         case "Intersection":  return new Intersection();
         case "Angle":         return new Angle();
         case "TextBox":      return new TextBox();
